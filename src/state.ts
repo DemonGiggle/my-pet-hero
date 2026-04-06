@@ -3,7 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { PetState, Species, HeroClass } from './types.js';
 import { SPECIES } from './species.js';
-import { applyClassAttributeBonus, recommendClass } from './classes.js';
+import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
 
 const needsSchema = z.object({
@@ -36,6 +36,60 @@ const aptitudeSchema = z.object({
   berserker: z.number(),
   rogue: z.number(),
   mage: z.number()
+});
+
+const combatTurnSchema = z.object({
+  round: z.number(),
+  actor: z.enum(['hero', 'enemy']),
+  result: z.enum(['hit', 'crit', 'miss']),
+  damageType: z.enum(['physical', 'magic']),
+  damage: z.number(),
+  text: z.string()
+});
+
+const combatantSchema = z.object({
+  name: z.string(),
+  maxHealth: z.number(),
+  health: z.number(),
+  attack: z.number(),
+  magicAttack: z.number(),
+  defense: z.number(),
+  magicDefense: z.number(),
+  accuracy: z.number(),
+  evasion: z.number(),
+  crit: z.number(),
+  damageTypeBias: z.enum(['physical', 'magic'])
+});
+
+const enemyTemplateSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  floorRange: z.tuple([z.number(), z.number()]),
+  damageTypeBias: z.enum(['physical', 'magic']),
+  baseHealth: z.number(),
+  baseAttack: z.number(),
+  baseDefense: z.number(),
+  baseAccuracy: z.number(),
+  baseEvasion: z.number(),
+  baseCrit: z.number(),
+  aggression: z.number(),
+  expReward: z.number(),
+  goldReward: z.number(),
+  abilities: z.array(z.string()).optional()
+});
+
+const combatResultSchema = z.object({
+  outcome: z.enum(['win', 'escape', 'defeat']),
+  enemy: enemyTemplateSchema,
+  hero: combatantSchema,
+  enemyState: combatantSchema,
+  rounds: z.number(),
+  turns: z.array(combatTurnSchema),
+  expGained: z.number(),
+  goldGained: z.number(),
+  healthLoss: z.number(),
+  moodDelta: z.number(),
+  text: z.string()
 });
 
 const petStateSchema = z.object({
@@ -71,10 +125,11 @@ const petStateSchema = z.object({
     adventureLog: z.array(z.object({
       at: z.string(),
       floor: z.number(),
-      outcome: z.enum(['win', 'escape', 'rest', 'treasure']),
+      outcome: z.enum(['win', 'escape', 'rest', 'treasure', 'defeat']),
       text: z.string(),
       expGained: z.number(),
-      goldGained: z.number()
+      goldGained: z.number(),
+      combat: combatResultSchema.optional()
     }))
   }),
   history: z.array(z.object({
@@ -103,11 +158,10 @@ export async function savePet(pet: PetState, dataDir = DEFAULT_DATA_DIR): Promis
 }
 
 function buildAptitude(species: Species): Record<HeroClass, number> {
-  const recommended = recommendClass(species);
   return {
-    berserker: recommended === 'berserker' ? 1.15 : 1,
-    rogue: recommended === 'rogue' ? 1.15 : 1,
-    mage: recommended === 'mage' ? 1.15 : 1
+    berserker: Number(getClassAffinity('berserker', species).toFixed(2)),
+    rogue: Number(getClassAffinity('rogue', species).toFixed(2)),
+    mage: Number(getClassAffinity('mage', species).toFixed(2))
   };
 }
 
@@ -135,7 +189,7 @@ export function createPet(params: { id: string; name: string; species: Species; 
   const aptitude = buildAptitude(params.species);
 
   return {
-    version: 3,
+    version: 4,
     id: params.id,
     name: params.name,
     species: params.species,

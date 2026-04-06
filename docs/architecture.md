@@ -7,9 +7,10 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 1. 載入上次儲存狀態
 2. 算出距離上次模擬經過多久
 3. 根據種族配置做 needs decay
-4. 根據職業特性與固定 seed + 時間 bucket 生成可重現事件
-5. 更新狀態
-6. 即時輸出狀態圖
+4. 根據職業特性、敵人池與固定 seed + 時間 bucket 生成可重現事件
+5. 若發生冒險，則進入簡化戰鬥解析
+6. 更新狀態
+7. 即時輸出狀態圖
 
 ## State Model
 
@@ -24,6 +25,8 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 - hero progression
 - current class / unlocked classes / aptitude
 - recent history
+- adventure logs
+- optional combat result snapshot
 
 ## Why this is lightweight
 
@@ -31,6 +34,7 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 - 沒有 background game loop
 - state 為單一 JSON
 - render 只在需要時發生
+- 戰鬥只在事件觸發時解析，不持續常駐
 
 ## Species-first + Class-first design
 
@@ -42,6 +46,37 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 - 視覺與系統方向
 
 目前職業使用獨立 config table（`src/classes.ts`），未來擴充新職業時，應優先延續資料驅動結構，而不是把技能與規則散落到多個 if/else。
+
+## Combat module
+
+目前戰鬥系統位於 `src/combat.ts`，負責：
+
+- 敵人樣板定義
+- 依樓層挑選敵人
+- 由 hero state 建立戰鬥快照
+- 計算：
+  - attack / magicAttack
+  - defense / magicDefense
+  - accuracy / evasion
+  - crit
+- 跑簡化回合制戰鬥
+- 產出可存檔的 combat result
+
+### Combat rules (current)
+
+- 每場最多 6 回合
+- 依職業決定主傷害傾向（法師偏魔法，其餘偏物理）
+- 命中、閃避、暴擊都有獨立計算
+- 戰鬥結果分為：
+  - `win`
+  - `escape`
+  - `defeat`
+- 結果會回寫到：
+  - health
+  - mood
+  - exp
+  - gold
+  - adventure log
 
 ## Current class set
 
@@ -68,9 +103,10 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 
 ## Suggested next modules
 
-- `combat/`：命中、傷害、抗性、控制效果
-- `dungeons/`：樓層與房間生成
-- `loot/`：寶箱、裝備、消耗品
 - `skills/`：主動 / 被動技能樹
+- `dungeons/`：樓層、房間、陷阱、事件生成
+- `loot/`：寶箱、裝備、消耗品
+- `equipment/`：裝備欄位、職業限制、稀有度
+- `town/`：商店、休息、補給、傳送
 - `conversation/`：把自然語言查詢映射到 status / action
 - `integrations/openclaw/`：回圖給聊天介面

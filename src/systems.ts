@@ -1,6 +1,7 @@
 import { PetState, Attributes, AdventureLog } from './types.js';
 import { CLASSES, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, hashToUnit } from './utils.js';
+import { runCombat } from './combat.js';
 
 export function autoRecoverNeeds(pet: PetState, at: string): string[] {
   const notes: string[] = [];
@@ -55,39 +56,54 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   if (roll > Math.min(0.28 + urge, 0.72)) return null;
 
   const floor = Math.max(1, pet.hero.dungeon.floor + 1);
-  const power = pet.hero.attributes.strength * 1.15
-    + pet.hero.attributes.agility * (1 + heroClass.attackSpeedModifier)
-    + pet.hero.attributes.intelligence * (heroClass.key === 'mage' ? 1.45 : 1)
-    + pet.hero.attributes.vitality * 1.12
-    + pet.hero.level * 3
-    + affinity * 3;
-  const difficulty = 14 + floor * 4 + hashToUnit(`${pet.seed}:dungeon:diff:${at}`) * 10;
-  let outcome: AdventureLog['outcome'] = 'win';
-  if (power + hashToUnit(`${pet.seed}:dungeon:combat:${at}`) * 18 < difficulty) outcome = 'escape';
-  else if (hashToUnit(`${pet.seed}:dungeon:treasure:${at}`) > 0.82 || heroClass.abilities.includes('lockpicking')) outcome = 'treasure';
+  const treasureBias = heroClass.abilities.includes('lockpicking') ? 0.12 : 0;
+  const treasureRoll = hashToUnit(`${pet.seed}:dungeon:treasure:${at}`);
 
-  const exp = Math.round((outcome === 'win' ? 10 + floor * 4 : outcome === 'treasure' ? 8 + floor * 3 : 4 + floor * 2) * affinity);
-  const gold = outcome === 'treasure' ? 12 + floor * 5 : outcome === 'win' ? 6 + floor * 2 : 2 + floor;
+  let outcome: AdventureLog['outcome'];
+  let exp = 0;
+  let gold = 0;
+  let text = '';
+  let combat;
 
-  pet.needs.energy = clamp(pet.needs.energy - (10 + floor * 1.5 - heroClass.moveSpeedModifier * 5));
-  pet.needs.hunger = clamp(pet.needs.hunger + (8 + floor));
-  pet.needs.thirst = clamp(pet.needs.thirst + (10 + floor));
-  pet.needs.mood = clamp(pet.needs.mood + (outcome === 'escape' ? -4 : 6));
-  pet.needs.health = clamp(pet.needs.health - (outcome === 'escape' ? 8 : 2) + heroClass.physicalResistance * 6 + heroClass.controlResistance * 2);
+  if (treasureRoll > 0.9 - treasureBias) {
+    outcome = 'treasure';
+    exp = Math.round((8 + floor * 3) * affinity);
+    gold = 14 + floor * 5;
+    pet.needs.energy = clamp(pet.needs.energy - (8 + floor));
+    pet.needs.hunger = clamp(pet.needs.hunger + (6 + floor));
+    pet.needs.thirst = clamp(pet.needs.thirst + (7 + floor));
+    pet.needs.mood = clamp(pet.needs.mood + 8);
+    pet.needs.health = clamp(pet.needs.health - 1);
+    text = `${heroClass.label}型態發揮效果，在迷宮 ${floor} 層撬開寶箱帶回戰利品。`;
+  } else {
+    combat = runCombat(pet, floor, at);
+    outcome = combat.outcome;
+    exp = Math.round(combat.expGained * affinity);
+    gold = combat.goldGained;
+    const healthPercentLoss = (combat.healthLoss / Math.max(1, combat.hero.maxHealth)) * 100;
+    pet.needs.health = clamp(pet.needs.health - healthPercentLoss);
+    pet.needs.energy = clamp(pet.needs.energy - (10 + floor * 1.6));
+    pet.needs.hunger = clamp(pet.needs.hunger + (8 + floor));
+    pet.needs.thirst = clamp(pet.needs.thirst + (10 + floor));
+    pet.needs.mood = clamp(pet.needs.mood + combat.moodDelta);
+    text = combat.text;
+  }
+
   pet.hero.gold += gold;
   gainExp(pet, exp);
-  pet.hero.dungeon.floor = outcome === 'escape' ? Math.max(1, floor - 1) : floor;
+
+  if (outcome === 'win' || outcome === 'treasure') {
+    pet.hero.dungeon.floor = floor;
+  } else if (outcome === 'defeat') {
+    pet.hero.dungeon.floor = Math.max(1, floor - 1);
+  } else {
+    pet.hero.dungeon.floor = Math.max(1, floor - 1);
+  }
+
   pet.hero.dungeon.deepestFloor = Math.max(pet.hero.dungeon.deepestFloor, floor);
   pet.hero.dungeon.runs += 1;
 
-  const text =
-    outcome === 'treasure'
-      ? `${heroClass.label}型態發揮效果，闖到迷宮 ${floor} 層並帶回寶物。`
-      : outcome === 'win'
-        ? `${heroClass.label}風格順利發揮，闖過迷宮 ${floor} 層。`
-        : `在迷宮 ${floor} 層感覺不妙，及時撤退。`;
-
-  const log: AdventureLog = { at, floor, outcome, text, expGained: exp, goldGained: gold };
+  const log: AdventureLog = { at, floor, outcome, text, expGained: exp, goldGained: gold, combat };
   pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-20);
   return log;
 }

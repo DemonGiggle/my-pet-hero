@@ -103,13 +103,68 @@ export interface PetEvent {
   text: string;
 }
 
+export interface EnemyTemplate {
+  key: string;
+  label: string;
+  floorRange: [number, number];
+  damageTypeBias: DamageType;
+  baseHealth: number;
+  baseAttack: number;
+  baseDefense: number;
+  baseAccuracy: number;
+  baseEvasion: number;
+  baseCrit: number;
+  aggression: number;
+  expReward: number;
+  goldReward: number;
+  abilities?: string[];
+}
+
+export interface CombatantSnapshot {
+  name: string;
+  maxHealth: number;
+  health: number;
+  attack: number;
+  magicAttack: number;
+  defense: number;
+  magicDefense: number;
+  accuracy: number;
+  evasion: number;
+  crit: number;
+  damageTypeBias: DamageType;
+}
+
+export interface CombatTurnLog {
+  round: number;
+  actor: 'hero' | 'enemy';
+  result: 'hit' | 'crit' | 'miss';
+  damageType: DamageType;
+  damage: number;
+  text: string;
+}
+
+export interface CombatResult {
+  outcome: 'win' | 'escape' | 'defeat';
+  enemy: EnemyTemplate;
+  hero: CombatantSnapshot;
+  enemyState: CombatantSnapshot;
+  rounds: number;
+  turns: CombatTurnLog[];
+  expGained: number;
+  goldGained: number;
+  healthLoss: number;
+  moodDelta: number;
+  text: string;
+}
+
 export interface AdventureLog {
   at: string;
   floor: number;
-  outcome: 'win' | 'escape' | 'rest' | 'treasure';
+  outcome: 'win' | 'escape' | 'rest' | 'treasure' | 'defeat';
   text: string;
   expGained: number;
   goldGained: number;
+  combat?: CombatResult;
 }
 
 export interface DungeonProgress {
