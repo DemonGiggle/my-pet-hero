@@ -28,6 +28,8 @@ export type AbilityTag =
   | 'elemental-magic'
   | 'summoning'
   | 'mind-control';
+export type SkillTarget = 'self' | 'enemy';
+export type SkillEffectKind = 'damage' | 'heal' | 'shield' | 'buff';
 
 export interface Needs {
   health: number;
@@ -96,6 +98,23 @@ export interface ClassConfig {
   gameplayNotes: string[];
 }
 
+export interface SkillDefinition {
+  key: string;
+  heroClass: HeroClass;
+  label: string;
+  description: string;
+  target: SkillTarget;
+  effectKind: SkillEffectKind;
+  damageType?: DamageType;
+  powerMultiplier?: number;
+  healMultiplier?: number;
+  shieldMultiplier?: number;
+  hitBonus?: number;
+  critBonus?: number;
+  minLevel?: number;
+  cooldownTurns: number;
+}
+
 export interface PetEvent {
   at: string;
   type: string;
@@ -132,15 +151,28 @@ export interface CombatantSnapshot {
   evasion: number;
   crit: number;
   damageTypeBias: DamageType;
+  shield: number;
+}
+
+export interface SkillUseLog {
+  round: number;
+  actor: 'hero' | 'enemy';
+  skillKey: string;
+  skillLabel: string;
+  effectKind: SkillEffectKind;
+  damageType?: DamageType;
+  value: number;
+  text: string;
 }
 
 export interface CombatTurnLog {
   round: number;
   actor: 'hero' | 'enemy';
-  result: 'hit' | 'crit' | 'miss';
+  result: 'hit' | 'crit' | 'miss' | 'skill';
   damageType: DamageType;
   damage: number;
   text: string;
+  skill?: SkillUseLog;
 }
 
 export interface CombatResult {
@@ -150,6 +182,7 @@ export interface CombatResult {
   enemyState: CombatantSnapshot;
   rounds: number;
   turns: CombatTurnLog[];
+  skillsUsed: SkillUseLog[];
   expGained: number;
   goldGained: number;
   healthLoss: number;

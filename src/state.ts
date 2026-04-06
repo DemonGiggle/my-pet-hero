@@ -38,13 +38,25 @@ const aptitudeSchema = z.object({
   mage: z.number()
 });
 
+const skillUseSchema = z.object({
+  round: z.number(),
+  actor: z.enum(['hero', 'enemy']),
+  skillKey: z.string(),
+  skillLabel: z.string(),
+  effectKind: z.enum(['damage', 'heal', 'shield', 'buff']),
+  damageType: z.enum(['physical', 'magic']).optional(),
+  value: z.number(),
+  text: z.string()
+});
+
 const combatTurnSchema = z.object({
   round: z.number(),
   actor: z.enum(['hero', 'enemy']),
-  result: z.enum(['hit', 'crit', 'miss']),
+  result: z.enum(['hit', 'crit', 'miss', 'skill']),
   damageType: z.enum(['physical', 'magic']),
   damage: z.number(),
-  text: z.string()
+  text: z.string(),
+  skill: skillUseSchema.optional()
 });
 
 const combatantSchema = z.object({
@@ -58,7 +70,8 @@ const combatantSchema = z.object({
   accuracy: z.number(),
   evasion: z.number(),
   crit: z.number(),
-  damageTypeBias: z.enum(['physical', 'magic'])
+  damageTypeBias: z.enum(['physical', 'magic']),
+  shield: z.number().default(0)
 });
 
 const enemyTemplateSchema = z.object({
@@ -85,6 +98,7 @@ const combatResultSchema = z.object({
   enemyState: combatantSchema,
   rounds: z.number(),
   turns: z.array(combatTurnSchema),
+  skillsUsed: z.array(skillUseSchema).default([]),
   expGained: z.number(),
   goldGained: z.number(),
   healthLoss: z.number(),
@@ -189,7 +203,7 @@ export function createPet(params: { id: string; name: string; species: Species; 
   const aptitude = buildAptitude(params.species);
 
   return {
-    version: 4,
+    version: 5,
     id: params.id,
     name: params.name,
     species: params.species,

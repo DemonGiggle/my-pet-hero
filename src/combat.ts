@@ -1,11 +1,14 @@
 import { CLASSES, getClassAffinity } from './classes.js';
+import { getSkillsForClass } from './skills.js';
 import {
   CombatResult,
   CombatTurnLog,
   CombatantSnapshot,
   DamageType,
   EnemyTemplate,
-  PetState
+  PetState,
+  SkillDefinition,
+  SkillUseLog
 } from './types.js';
 import { clamp, hashToUnit } from './utils.js';
 
@@ -112,7 +115,8 @@ function buildHeroSnapshot(pet: PetState): CombatantSnapshot {
     accuracy: clamp(0.74 + pet.hero.attributes.agility * 0.012 + pet.hero.attributes.luck * 0.004 + heroClass.attackSpeedModifier * 0.1, 0.55, 0.97),
     evasion: clamp(0.05 + pet.hero.attributes.agility * 0.008 + heroClass.moveSpeedModifier * 0.15, 0.02, 0.35),
     crit: clamp(0.04 + pet.hero.attributes.luck * 0.006 + heroClass.attackSpeedModifier * 0.04, 0.03, 0.35),
-    damageTypeBias: pet.hero.classProgress.current === 'mage' ? 'magic' : 'physical'
+    damageTypeBias: pet.hero.classProgress.current === 'mage' ? 'magic' : 'physical',
+    shield: 0
   };
 }
 
@@ -130,8 +134,17 @@ function buildEnemySnapshot(enemy: EnemyTemplate, floor: number): CombatantSnaps
     accuracy: clamp(enemy.baseAccuracy + floor * 0.005, 0.55, 0.95),
     evasion: clamp(enemy.baseEvasion + floor * 0.004, 0.02, 0.28),
     crit: clamp(enemy.baseCrit + floor * 0.003, 0.02, 0.22),
-    damageTypeBias: enemy.damageTypeBias
+    damageTypeBias: enemy.damageTypeBias,
+    shield: 0
   };
+}
+
+function applyDamage(target: CombatantSnapshot, damage: number): number {
+  const absorbed = Math.min(target.shield, damage);
+  target.shield = Math.max(0, target.shield - absorbed);
+  const finalDamage = Math.max(0, damage - absorbed);
+  target.health = Math.max(0, target.health - finalDamage);
+  return finalDamage;
 }
 
 function rollAttack(
@@ -139,13 +152,14 @@ function rollAttack(
   target: CombatantSnapshot,
   actorKind: 'hero' | 'enemy',
   round: number,
-  seed: string
+  seed: string,
+  overrides?: Partial<{ damageType: DamageType; powerMultiplier: number; hitBonus: number; critBonus: number; }>
 ): CombatTurnLog {
   const hitRoll = hashToUnit(`${seed}:${actorKind}:hit:${round}`);
   const critRoll = hashToUnit(`${seed}:${actorKind}:crit:${round}`);
   const variance = 0.85 + hashToUnit(`${seed}:${actorKind}:var:${round}`) * 0.35;
-  const hitChance = clamp(actor.accuracy - target.evasion + 0.08, 0.2, 0.98);
-  const damageType: DamageType = actor.damageTypeBias;
+  const damageType: DamageType = overrides?.damageType ?? actor.damageTypeBias;
+  const hitChance = clamp(actor.accuracy + (overrides?.hitBonus ?? 0) - target.evasion + 0.08, 0.2, 0.99);
 
   if (hitRoll > hitChance) {
     return {
@@ -158,11 +172,12 @@ function rollAttack(
     };
   }
 
-  const isCrit = critRoll < actor.crit;
+  const isCrit = critRoll < clamp(actor.crit + (overrides?.critBonus ?? 0), 0.03, 0.6);
   const attackStat = damageType === 'magic' ? actor.magicAttack : actor.attack;
   const defenseStat = damageType === 'magic' ? target.magicDefense : target.defense;
-  const raw = Math.max(1, attackStat * variance - defenseStat * 0.72);
-  const damage = Math.max(1, Math.round(raw * (isCrit ? 1.65 : 1)));
+  const raw = Math.max(1, attackStat * variance * (overrides?.powerMultiplier ?? 1) - defenseStat * 0.72);
+  const resolvedDamage = Math.max(1, Math.round(raw * (isCrit ? 1.65 : 1)));
+  const damage = applyDamage(target, resolvedDamage);
 
   return {
     round,
@@ -176,19 +191,116 @@ function rollAttack(
   };
 }
 
+function shouldUseSkill(skill: SkillDefinition, hero: CombatantSnapshot, enemy: CombatantSnapshot, round: number, seed: string): boolean {
+  const desire = hashToUnit(`${seed}:skill:${skill.key}:${round}`);
+  if (skill.effectKind === 'heal') return hero.health / hero.maxHealth < 0.58 && desire > 0.28;
+  if (skill.effectKind === 'shield') return hero.shield < 6 && enemy.health > 0 && desire > 0.35;
+  return desire > 0.42;
+}
+
+function useSkill(
+  skill: SkillDefinition,
+  hero: CombatantSnapshot,
+  enemy: CombatantSnapshot,
+  round: number,
+  seed: string
+): CombatTurnLog {
+  if (skill.effectKind === 'heal') {
+    const heal = Math.max(4, Math.round(hero.magicAttack * (skill.healMultiplier ?? 1)));
+    hero.health = Math.min(hero.maxHealth, hero.health + heal);
+    const used: SkillUseLog = {
+      round,
+      actor: 'hero',
+      skillKey: skill.key,
+      skillLabel: skill.label,
+      effectKind: 'heal',
+      value: heal,
+      text: `${hero.name} 使用 ${skill.label}，回復 ${heal} 生命。`
+    };
+    return {
+      round,
+      actor: 'hero',
+      result: 'skill',
+      damageType: hero.damageTypeBias,
+      damage: 0,
+      text: used.text,
+      skill: used
+    };
+  }
+
+  if (skill.effectKind === 'shield') {
+    const shield = Math.max(4, Math.round((hero.defense + hero.magicDefense) * 0.5 * (skill.shieldMultiplier ?? 1)));
+    hero.shield += shield;
+    const used: SkillUseLog = {
+      round,
+      actor: 'hero',
+      skillKey: skill.key,
+      skillLabel: skill.label,
+      effectKind: 'shield',
+      value: shield,
+      text: `${hero.name} 使用 ${skill.label}，獲得 ${shield} 點護盾。`
+    };
+    return {
+      round,
+      actor: 'hero',
+      result: 'skill',
+      damageType: hero.damageTypeBias,
+      damage: 0,
+      text: used.text,
+      skill: used
+    };
+  }
+
+  const attackTurn = rollAttack(hero, enemy, 'hero', round, `${seed}:${skill.key}`, {
+    damageType: skill.damageType ?? hero.damageTypeBias,
+    powerMultiplier: skill.powerMultiplier ?? 1,
+    hitBonus: skill.hitBonus ?? 0,
+    critBonus: skill.critBonus ?? 0
+  });
+  const used: SkillUseLog = {
+    round,
+    actor: 'hero',
+    skillKey: skill.key,
+    skillLabel: skill.label,
+    effectKind: 'damage',
+    damageType: attackTurn.damageType,
+    value: attackTurn.damage,
+    text: `${hero.name} 使用 ${skill.label}。${attackTurn.text}`
+  };
+  return {
+    ...attackTurn,
+    result: 'skill',
+    text: used.text,
+    skill: used
+  };
+}
+
 export function runCombat(pet: PetState, floor: number, at: string): CombatResult {
   const enemy = chooseEnemy(floor, `${pet.seed}:enemy:${at}:${floor}`);
   const hero = buildHeroSnapshot(pet);
   const enemyState = buildEnemySnapshot(enemy, floor);
   const turns: CombatTurnLog[] = [];
+  const skillsUsed: SkillUseLog[] = [];
   const maxRounds = 6;
+  const skillCooldowns = new Map<string, number>();
+  const heroSkills = getSkillsForClass(pet.hero.classProgress.current).filter((skill) => (skill.minLevel ?? 1) <= pet.hero.level);
 
   for (let round = 1; round <= maxRounds; round++) {
-    const heroTurn = rollAttack(hero, enemyState, 'hero', round, `${pet.seed}:${at}:${enemy.key}`);
+    let heroTurn: CombatTurnLog;
+    const availableSkills = heroSkills.filter((skill) => (skillCooldowns.get(skill.key) ?? 0) <= round);
+    const chosenSkill = availableSkills.find((skill) => shouldUseSkill(skill, hero, enemyState, round, `${pet.seed}:${at}:${enemy.key}`));
+
+    if (chosenSkill) {
+      heroTurn = useSkill(chosenSkill, hero, enemyState, round, `${pet.seed}:${at}:${enemy.key}`);
+      skillCooldowns.set(chosenSkill.key, round + chosenSkill.cooldownTurns);
+      if (heroTurn.skill) skillsUsed.push(heroTurn.skill);
+    } else {
+      heroTurn = rollAttack(hero, enemyState, 'hero', round, `${pet.seed}:${at}:${enemy.key}`);
+    }
+
     turns.push(heroTurn);
-    enemyState.health = Math.max(0, enemyState.health - heroTurn.damage);
     if (enemyState.health <= 0) {
-      const expGained = enemy.expReward + floor * 2;
+      const expGained = enemy.expReward + floor * 2 + skillsUsed.length;
       const goldGained = enemy.goldReward + Math.max(0, Math.round(floor * 1.5));
       const healthLoss = hero.maxHealth - hero.health;
       return {
@@ -198,6 +310,7 @@ export function runCombat(pet: PetState, floor: number, at: string): CombatResul
         enemyState,
         rounds: round,
         turns,
+        skillsUsed,
         expGained,
         goldGained,
         healthLoss,
@@ -208,7 +321,6 @@ export function runCombat(pet: PetState, floor: number, at: string): CombatResul
 
     const enemyTurn = rollAttack(enemyState, hero, 'enemy', round, `${pet.seed}:${at}:${enemy.key}`);
     turns.push(enemyTurn);
-    hero.health = Math.max(0, hero.health - enemyTurn.damage);
     if (hero.health <= 0) {
       const healthLoss = hero.maxHealth;
       return {
@@ -218,6 +330,7 @@ export function runCombat(pet: PetState, floor: number, at: string): CombatResul
         enemyState,
         rounds: round,
         turns,
+        skillsUsed,
         expGained: Math.max(1, Math.round(enemy.expReward * 0.35)),
         goldGained: 0,
         healthLoss,
@@ -236,7 +349,8 @@ export function runCombat(pet: PetState, floor: number, at: string): CombatResul
     enemyState,
     rounds: maxRounds,
     turns,
-    expGained: outcome === 'win' ? enemy.expReward + floor : Math.max(2, Math.round(enemy.expReward * 0.5)),
+    skillsUsed,
+    expGained: outcome === 'win' ? enemy.expReward + floor + skillsUsed.length : Math.max(2, Math.round(enemy.expReward * 0.5)),
     goldGained: outcome === 'win' ? enemy.goldReward + floor : Math.max(0, Math.round(enemy.goldReward * 0.35)),
     healthLoss: hero.maxHealth - hero.health,
     moodDelta: outcome === 'win' ? 5 : -3,

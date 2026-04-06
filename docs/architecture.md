@@ -9,8 +9,9 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 3. 根據種族配置做 needs decay
 4. 根據職業特性、敵人池與固定 seed + 時間 bucket 生成可重現事件
 5. 若發生冒險，則進入簡化戰鬥解析
-6. 更新狀態
-7. 即時輸出狀態圖
+6. 戰鬥中依職業技能自動觸發技能
+7. 更新狀態
+8. 即時輸出狀態圖
 
 ## State Model
 
@@ -35,17 +36,30 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
 - state 為單一 JSON
 - render 只在需要時發生
 - 戰鬥只在事件觸發時解析，不持續常駐
+- 技能只在戰鬥解析當下套用，不需要額外背景狀態機
 
-## Species-first + Class-first design
+## Class + Skill design
 
-種族與職業都不是單純貼標籤，而是驅動：
-- 初始值
-- 屬性傾向
-- 相容加成
-- 事件傾向
-- 視覺與系統方向
+職業與技能都採資料驅動：
 
-目前職業使用獨立 config table（`src/classes.ts`），未來擴充新職業時，應優先延續資料驅動結構，而不是把技能與規則散落到多個 if/else。
+- `src/classes.ts`：職業設定
+- `src/skills.ts`：技能設定
+- `src/combat.ts`：戰鬥與技能解析
+
+目前技能支援類型：
+- `damage`
+- `heal`
+- `shield`
+- `buff`（類型先保留，下一步可接）
+
+每個技能可定義：
+- target
+- effect kind
+- damage type
+- power / heal / shield multiplier
+- hit / crit bonus
+- cooldown turns
+- minimum level
 
 ## Combat module
 
@@ -59,51 +73,28 @@ My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**�
   - defense / magicDefense
   - accuracy / evasion
   - crit
+  - shield
 - 跑簡化回合制戰鬥
+- 在合適情境下觸發技能
 - 產出可存檔的 combat result
 
-### Combat rules (current)
-
-- 每場最多 6 回合
-- 依職業決定主傷害傾向（法師偏魔法，其餘偏物理）
-- 命中、閃避、暴擊都有獨立計算
-- 戰鬥結果分為：
-  - `win`
-  - `escape`
-  - `defeat`
-- 結果會回寫到：
-  - health
-  - mood
-  - exp
-  - gold
-  - adventure log
-
-## Current class set
+## Current class skills
 
 ### Berserker
-- 雙手武器 / 多近戰武器
-- 厚血
-- 物理抗性高
-- 怕魔法
-- 抗控制與限制行動
-- 矮人 / 人類加成
+- 粉碎重擊：高倍率物理輸出
+- 鋼鐵姿態：護盾
 
 ### Rogue
-- 短刃 / 雙持
-- 高攻速高敏捷
-- 陷阱偵測 / 開鎖 / 潛行
-- 偏皮甲
-- 人類 / 精靈 / 龍族加成
+- 影襲：高命中高爆擊輸出
+- 閃步：護盾
 
 ### Mage
-- 法杖
-- 元素 / 召喚 / 心控法術
-- 魔法食物 / 藥水 / 城鎮傳送門
-- 龍族 / 精靈加成
+- 奧術爆裂：高倍率魔法輸出
+- 祕術饗宴：補血
 
 ## Suggested next modules
 
-- `skills/`：主動 / 被動技能樹
+- `status-effects/`：暈眩、緩速、中毒、燃燒、魅惑
 - `dungeons/`：樓層、房間、陷阱、事件生成
 - `loot/`：寶箱、裝備、消耗品
 - `equipment/`：裝備欄位、職業限制、稀有度

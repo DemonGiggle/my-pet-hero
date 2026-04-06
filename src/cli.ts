@@ -7,6 +7,7 @@ import { SPECIES_LIST } from './species.js';
 import { CLASS_LIST, recommendClass } from './classes.js';
 import { HeroClass, Species } from './types.js';
 import { runCombat, ENEMIES } from './combat.js';
+import { SKILLS } from './skills.js';
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -28,6 +29,7 @@ async function printStatus(id: string): Promise<void> {
     species: result.pet.species,
     heroClass: result.pet.hero.classProgress.current,
     classUnlocked: result.pet.hero.classProgress.unlocked,
+    skills: SKILLS[result.pet.hero.classProgress.current],
     level: result.pet.hero.level,
     exp: result.pet.hero.exp,
     expToNext: result.pet.hero.expToNext,
@@ -85,6 +87,7 @@ async function create(): Promise<void> {
     species: pet.species,
     heroClass: pet.hero.classProgress.current,
     recommendedClass: recommendClass(pet.species),
+    skills: SKILLS[pet.hero.classProgress.current],
     level: pet.hero.level,
     attributes: pet.hero.attributes,
     aptitude: pet.hero.classProgress.aptitude,
@@ -101,6 +104,10 @@ function printEnemies(): void {
   console.log(JSON.stringify(ENEMIES, null, 2));
 }
 
+function printSkills(): void {
+  console.log(JSON.stringify(SKILLS, null, 2));
+}
+
 async function combatPreview(id: string): Promise<void> {
   const pet = await loadPet(id);
   const result = simulatePet(pet);
@@ -110,6 +117,7 @@ async function combatPreview(id: string): Promise<void> {
     id: result.pet.id,
     floor,
     heroClass: result.pet.hero.classProgress.current,
+    skills: SKILLS[result.pet.hero.classProgress.current],
     enemy: combat.enemy.label,
     outcome: combat.outcome,
     rounds: combat.rounds,
@@ -117,6 +125,7 @@ async function combatPreview(id: string): Promise<void> {
     goldGained: combat.goldGained,
     healthLoss: combat.healthLoss,
     text: combat.text,
+    skillsUsed: combat.skillsUsed,
     turns: combat.turns
   }, null, 2));
 }
@@ -124,12 +133,13 @@ async function combatPreview(id: string): Promise<void> {
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID\n  classes\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
     return;
   }
 
   if (cmd === 'create') return create();
   if (cmd === 'classes') return printClasses();
+  if (cmd === 'skills') return printSkills();
   if (cmd === 'enemies') return printEnemies();
   if (cmd === 'combat-preview') {
     const id = getArg('id');
