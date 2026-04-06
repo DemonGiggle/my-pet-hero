@@ -29,11 +29,15 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
   }
 
   const lines: string[] = [];
-  lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，目前在迷宮 ${result.pet.hero.dungeon.floor} 層。`);
+  const dungeonInfo = result.pet.hero.dungeon.currentDungeon
+    ? `，正在探索 ${result.pet.hero.dungeon.currentDungeon.name}`
+    : '';
+  lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，目前在迷宮 ${result.pet.hero.dungeon.floor} 層${dungeonInfo}。`);
   lines.push('最近冒險：');
 
   for (const item of adventures) {
-    const base = `- Floor ${item.floor} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`;
+    const place = item.dungeonName ? ` / ${item.dungeonName} / ${item.roomName ?? item.roomType ?? 'unknown'}` : '';
+    const base = `- Floor ${item.floor}${place} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`;
     lines.push(base);
     lines.push(`  ${item.text}`);
 
@@ -44,9 +48,7 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
         lines.push(`  技能：${skillNames}`);
       }
       const turnTexts = item.combat.turns.slice(0, 3).map(turn => turn.text).join(' / ');
-      if (turnTexts) {
-        lines.push(`  細節：${turnTexts}`);
-      }
+      if (turnTexts) lines.push(`  細節：${turnTexts}`);
     }
   }
 
@@ -58,6 +60,8 @@ async function printStatus(id: string): Promise<void> {
   const result = simulatePet(pet);
   await savePet(result.pet);
   const rendered = await renderStatusCard({ pet: result.pet, summary: result.summary });
+  const currentDungeon = result.pet.hero.dungeon.currentDungeon;
+  const currentRoom = currentDungeon?.rooms.find(room => room.id === currentDungeon.currentRoomId);
 
   const payload: Record<string, unknown> = {
     id: result.pet.id,
@@ -72,6 +76,19 @@ async function printStatus(id: string): Promise<void> {
     gold: result.pet.hero.gold,
     dungeonFloor: result.pet.hero.dungeon.floor,
     deepestFloor: result.pet.hero.dungeon.deepestFloor,
+    currentDungeon: currentDungeon
+      ? {
+          id: currentDungeon.id,
+          name: currentDungeon.name,
+          theme: currentDungeon.theme,
+          description: currentDungeon.description,
+          currentRoomId: currentDungeon.currentRoomId,
+          discoveredRoomIds: currentDungeon.discoveredRoomIds,
+          clearedRoomIds: currentDungeon.clearedRoomIds,
+          rooms: currentDungeon.rooms,
+          currentRoom
+        }
+      : null,
     summary: result.summary,
     mood: result.moodLabel,
     stage: result.stageLabel,
@@ -83,10 +100,7 @@ async function printStatus(id: string): Promise<void> {
     adventures: result.pet.hero.adventureLog.slice(-3)
   };
 
-  if (hasFlag('report')) {
-    payload.report = formatAdventureReport(result).join('\n');
-  }
-
+  if (hasFlag('report')) payload.report = formatAdventureReport(result).join('\n');
   console.log(JSON.stringify(payload, null, 2));
 }
 

@@ -2,6 +2,7 @@ import { PetState, Attributes, AdventureLog } from './types.js';
 import { CLASSES, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, hashToUnit } from './utils.js';
 import { runCombat } from './combat.js';
+import { advanceDungeonRoom, generateDungeonInstance, getCurrentRoom } from './dungeons.js';
 
 export function autoRecoverNeeds(pet: PetState, at: string): string[] {
   const notes: string[] = [];
@@ -47,6 +48,16 @@ export function applyAutoStatGrowth(attributes: Attributes, level: number): Attr
   };
 }
 
+function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
+  const current = pet.hero.dungeon.currentDungeon;
+  if (!current || current.floor !== floor) {
+    const created = generateDungeonInstance({ pet, floor, at });
+    pet.hero.dungeon.currentDungeon = created;
+    return created;
+  }
+  return current;
+}
+
 export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   if (pet.needs.energy < 35 || pet.needs.health < 35) return null;
   const heroClass = CLASSES[pet.hero.classProgress.current];
@@ -56,8 +67,9 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   if (roll > Math.min(0.28 + urge, 0.72)) return null;
 
   const floor = Math.max(1, pet.hero.dungeon.floor + 1);
+  const dungeon = ensureDungeonInstance(pet, floor, at);
+  const room = getCurrentRoom(dungeon) ?? dungeon.rooms[0];
   const treasureBias = heroClass.abilities.includes('lockpicking') ? 0.12 : 0;
-  const treasureRoll = hashToUnit(`${pet.seed}:dungeon:treasure:${at}`);
 
   let outcome: AdventureLog['outcome'];
   let exp = 0;
@@ -65,7 +77,15 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   let text = '';
   let combat;
 
-  if (treasureRoll > 0.9 - treasureBias) {
+  if (room.type === 'rest') {
+    outcome = 'rest';
+    exp = 4;
+    gold = 0;
+    pet.needs.energy = clamp(pet.needs.energy + 18);
+    pet.needs.health = clamp(pet.needs.health + 6);
+    pet.needs.mood = clamp(pet.needs.mood + 4);
+    text = `${pet.name} 在 ${dungeon.name} 的${room.name}稍作休息，恢復了一點精神。`;
+  } else if (room.type === 'treasure' || (room.type === 'event' && hashToUnit(`${pet.seed}:event-treasure:${at}`) > 0.5 - treasureBias)) {
     outcome = 'treasure';
     exp = Math.round((8 + floor * 3) * affinity);
     gold = 14 + floor * 5;
@@ -74,7 +94,14 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
     pet.needs.thirst = clamp(pet.needs.thirst + (7 + floor));
     pet.needs.mood = clamp(pet.needs.mood + 8);
     pet.needs.health = clamp(pet.needs.health - 1);
-    text = `${heroClass.label}型態發揮效果，在迷宮 ${floor} 層撬開寶箱帶回戰利品。`;
+    text = `${pet.name} 在 ${dungeon.name} 的${room.name}找到寶箱，帶回一批戰利品。`;
+  } else if (room.type === 'event') {
+    outcome = 'rest';
+    exp = 6;
+    gold = 3 + floor;
+    pet.needs.mood = clamp(pet.needs.mood + 5);
+    pet.needs.energy = clamp(pet.needs.energy - 4);
+    text = `${pet.name} 在 ${dungeon.name} 的${room.name}遇到奇異事件，雖然沒開打，但也不是白跑一趟。`;
   } else {
     combat = runCombat(pet, floor, at);
     outcome = combat.outcome;
@@ -86,24 +113,38 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
     pet.needs.hunger = clamp(pet.needs.hunger + (8 + floor));
     pet.needs.thirst = clamp(pet.needs.thirst + (10 + floor));
     pet.needs.mood = clamp(pet.needs.mood + combat.moodDelta);
-    text = combat.text;
+    text = `${pet.name} 在 ${dungeon.name} 的${room.name}${combat.text.replace(`${pet.name} `, '')}`;
   }
 
   pet.hero.gold += gold;
   gainExp(pet, exp);
 
-  if (outcome === 'win' || outcome === 'treasure') {
+  const nextRoom = advanceDungeonRoom(dungeon);
+  if ((outcome === 'win' || outcome === 'treasure' || outcome === 'rest') && !nextRoom) {
     pet.hero.dungeon.floor = floor;
+    pet.hero.dungeon.currentDungeon = undefined;
   } else if (outcome === 'defeat') {
     pet.hero.dungeon.floor = Math.max(1, floor - 1);
-  } else {
+    pet.hero.dungeon.currentDungeon = undefined;
+  } else if (outcome === 'escape') {
     pet.hero.dungeon.floor = Math.max(1, floor - 1);
   }
 
   pet.hero.dungeon.deepestFloor = Math.max(pet.hero.dungeon.deepestFloor, floor);
   pet.hero.dungeon.runs += 1;
 
-  const log: AdventureLog = { at, floor, outcome, text, expGained: exp, goldGained: gold, combat };
+  const log: AdventureLog = {
+    at,
+    floor,
+    outcome,
+    text,
+    expGained: exp,
+    goldGained: gold,
+    combat,
+    dungeonName: dungeon.name,
+    roomName: room.name,
+    roomType: room.type
+  };
   pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-20);
   return log;
 }

@@ -30,6 +30,7 @@ export type AbilityTag =
   | 'mind-control';
 export type SkillTarget = 'self' | 'enemy';
 export type SkillEffectKind = 'damage' | 'heal' | 'shield' | 'buff';
+export type DungeonRoomType = 'entrance' | 'battle' | 'elite' | 'treasure' | 'event' | 'rest' | 'shop' | 'boss';
 
 export interface Needs {
   health: number;
@@ -198,6 +199,51 @@ export interface AdventureLog {
   expGained: number;
   goldGained: number;
   combat?: CombatResult;
+  dungeonName?: string;
+  roomName?: string;
+  roomType?: DungeonRoomType;
+}
+
+export interface DungeonRoom {
+  id: string;
+  type: DungeonRoomType;
+  name: string;
+  depth: number;
+  enemies: string[];
+  cleared: boolean;
+  exits: string[];
+}
+
+export interface DungeonTemplate {
+  key: string;
+  theme: string;
+  nameParts: {
+    prefixes: string[];
+    suffixes: string[];
+  };
+  floorRange: [number, number];
+  roomCountRange: [number, number];
+  enemyKeys: string[];
+  eliteEnemyKeys: string[];
+  bossEnemyKeys: string[];
+  eventBias: number;
+  treasureBias: number;
+  restBias: number;
+  description: string;
+}
+
+export interface DungeonInstance {
+  id: string;
+  name: string;
+  theme: string;
+  templateKey: string;
+  floor: number;
+  rooms: DungeonRoom[];
+  currentRoomId: string;
+  discoveredRoomIds: string[];
+  clearedRoomIds: string[];
+  seed: string;
+  description: string;
 }
 
 export interface DungeonProgress {
@@ -205,6 +251,7 @@ export interface DungeonProgress {
   floor: number;
   deepestFloor: number;
   runs: number;
+  currentDungeon?: DungeonInstance;
 }
 
 export interface ClassProgress {
@@ -258,7 +305,4 @@ export interface StatusSnapshot {
   summary: string;
   moodLabel: string;
   stageLabel: string;
-  imagePath: string;
-  pet: PetState;
-  events: PetEvent[];
 }

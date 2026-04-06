@@ -106,6 +106,30 @@ const combatResultSchema = z.object({
   text: z.string()
 });
 
+const dungeonRoomSchema = z.object({
+  id: z.string(),
+  type: z.enum(['entrance', 'battle', 'elite', 'treasure', 'event', 'rest', 'shop', 'boss']),
+  name: z.string(),
+  depth: z.number(),
+  enemies: z.array(z.string()).default([]),
+  cleared: z.boolean().default(false),
+  exits: z.array(z.string()).default([])
+});
+
+const dungeonInstanceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  theme: z.string(),
+  templateKey: z.string(),
+  floor: z.number(),
+  rooms: z.array(dungeonRoomSchema),
+  currentRoomId: z.string(),
+  discoveredRoomIds: z.array(z.string()).default([]),
+  clearedRoomIds: z.array(z.string()).default([]),
+  seed: z.string(),
+  description: z.string().default('')
+});
+
 const petStateSchema = z.object({
   version: z.number(),
   id: z.string(),
@@ -129,7 +153,8 @@ const petStateSchema = z.object({
       seed: z.number(),
       floor: z.number(),
       deepestFloor: z.number(),
-      runs: z.number()
+      runs: z.number(),
+      currentDungeon: dungeonInstanceSchema.optional()
     }),
     classProgress: z.object({
       current: heroClassSchema,
@@ -143,7 +168,10 @@ const petStateSchema = z.object({
       text: z.string(),
       expGained: z.number(),
       goldGained: z.number(),
-      combat: combatResultSchema.optional()
+      combat: combatResultSchema.optional(),
+      dungeonName: z.string().optional(),
+      roomName: z.string().optional(),
+      roomType: z.enum(['entrance', 'battle', 'elite', 'treasure', 'event', 'rest', 'shop', 'boss']).optional()
     }))
   }),
   history: z.array(z.object({
@@ -203,7 +231,7 @@ export function createPet(params: { id: string; name: string; species: Species; 
   const aptitude = buildAptitude(params.species);
 
   return {
-    version: 5,
+    version: 6,
     id: params.id,
     name: params.name,
     species: params.species,
