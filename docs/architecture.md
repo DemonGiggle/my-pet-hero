@@ -1,103 +1,111 @@
 # My Pet Hero Architecture
 
-## Philosophy
+這份文件講的是 **程式架構**，不是遊戲企劃。
 
-My Pet Hero 不是 Tamagotchi 式常駐 loop，而是 **query-time simulation**：
+## Core philosophy
+
+My Pet Hero 採用 **query-time simulation**：
 
 1. 載入上次儲存狀態
-2. 算出距離上次模擬經過多久
-3. 根據種族配置做 needs decay
-4. 根據職業特性、敵人池與固定 seed + 時間 bucket 生成可重現事件
-5. 若發生冒險，則進入簡化戰鬥解析
-6. 戰鬥中依職業技能自動觸發技能
-7. 更新狀態
-8. 即時輸出狀態圖
+2. 計算距離上次模擬經過多久
+3. 根據 needs decay、個性、種族與職業特性推進角色狀態
+4. 視情況觸發生活事件、冒險事件、戰鬥
+5. 即時計算並寫回狀態
+6. 需要時輸出 PNG 狀態圖與 JSON / report
 
-## State Model
+## Why this architecture
 
-`PetState` 保存：
+- 不需要背景 daemon
+- 不需要常駐 game loop
+- 狀態易保存、易搬移、易除錯
+- 適合 CLI / bot / chat integration
+- 很適合接 OpenClaw 這種查詢式互動
+
+## Main modules
+
+### `src/state.ts`
+- 載入 / 驗證 / 儲存 pet state
+- 建立新角色
+- 處理 schema 相容性
+
+### `src/simulate.ts`
+- 推進時間
+- 更新需求值
+- 觸發生活 / 冒險事件
+- 回傳狀態摘要
+
+### `src/systems.ts`
+- 放核心系統邏輯
+- 例如自動恢復、經驗成長、迷宮推進等
+
+### `src/classes.ts`
+- 職業定義
+- 種族相容性
+- aptitude / recommendClass
+
+### `src/skills.ts`
+- 技能資料表
+- 技能效果定義
+- 冷卻與技能屬性
+
+### `src/combat.ts`
+- 敵人資料
+- 戰鬥快照
+- 命中 / 閃避 / 暴擊 / 護盾 / 技能解析
+- 戰鬥結果輸出
+
+### `src/render.ts`
+- 產生像素風狀態圖 PNG
+
+### `src/cli.ts`
+- CLI 入口
+- 對外暴露 create / status / report / action / preview 等指令
+
+## Persisted state
+
+目前主要資料存在：
+
+- `data/pets/*.json`
+- `data/default-hero.json`
+
+State 內容大致包含：
+
 - identity
 - species
-- createdAt / lastSimulatedAt
-- ageHours
+- timestamps
 - needs
 - personality
-- seed
 - hero progression
-- current class / unlocked classes / aptitude
-- recent history
+- class progress
 - adventure logs
-- optional combat result snapshot
+- optional combat snapshots
 
-## Why this is lightweight
+## Rendering strategy
 
-- 沒有 scheduler / daemon 必要性
-- 沒有 background game loop
-- state 為單一 JSON
-- render 只在需要時發生
-- 戰鬥只在事件觸發時解析，不持續常駐
-- 技能只在戰鬥解析當下套用，不需要額外背景狀態機
+狀態圖只負責：
 
-## Class + Skill design
+- 角色基本資訊
+- needs bars
+- attributes
+- summary
 
-職業與技能都採資料驅動：
+較長的 adventure log / report 不硬塞進圖裡，改走文字輸出，這樣比較不醜，也比較實際。
 
-- `src/classes.ts`：職業設定
-- `src/skills.ts`：技能設定
-- `src/combat.ts`：戰鬥與技能解析
+## Output modes
 
-目前技能支援類型：
-- `damage`
-- `heal`
-- `shield`
-- `buff`（類型先保留，下一步可接）
+目前 CLI 主要有兩種輸出層：
 
-每個技能可定義：
-- target
-- effect kind
-- damage type
-- power / heal / shield multiplier
-- hit / crit bonus
-- cooldown turns
-- minimum level
+1. **PNG status card**
+2. **JSON payload**
 
-## Combat module
+其中 `status --report` 會額外在 JSON 中附上一段文字 report，方便直接貼到聊天介面。
 
-目前戰鬥系統位於 `src/combat.ts`，負責：
+## Next technical directions
 
-- 敵人樣板定義
-- 依樓層挑選敵人
-- 由 hero state 建立戰鬥快照
-- 計算：
-  - attack / magicAttack
-  - defense / magicDefense
-  - accuracy / evasion
-  - crit
-  - shield
-- 跑簡化回合制戰鬥
-- 在合適情境下觸發技能
-- 產出可存檔的 combat result
-
-## Current class skills
-
-### Berserker
-- 粉碎重擊：高倍率物理輸出
-- 鋼鐵姿態：護盾
-
-### Rogue
-- 影襲：高命中高爆擊輸出
-- 閃步：護盾
-
-### Mage
-- 奧術爆裂：高倍率魔法輸出
-- 祕術饗宴：補血
-
-## Suggested next modules
-
-- `status-effects/`：暈眩、緩速、中毒、燃燒、魅惑
-- `dungeons/`：樓層、房間、陷阱、事件生成
-- `loot/`：寶箱、裝備、消耗品
-- `equipment/`：裝備欄位、職業限制、稀有度
-- `town/`：商店、休息、補給、傳送
-- `conversation/`：把自然語言查詢映射到 status / action
-- `integrations/openclaw/`：回圖給聊天介面
+- status effects system
+- equipment system
+- loot tables
+- dungeon room generation
+- skill unlock progression
+- richer event authoring
+- chat command mapping / bot integration
