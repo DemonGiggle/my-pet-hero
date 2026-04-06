@@ -5,9 +5,10 @@ import { renderStatusCard } from './render.js';
 import { feedPet, playWithPet, cleanPet } from './actions.js';
 import { SPECIES_LIST } from './species.js';
 import { CLASS_LIST, recommendClass } from './classes.js';
-import { HeroClass, Species } from './types.js';
+import { HeroClass, Species, PetState } from './types.js';
 import { runCombat, ENEMIES } from './combat.js';
 import { SKILLS } from './skills.js';
+import { autoDungeonRun } from './systems.js';
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -22,11 +23,13 @@ function slugify(input: string): string {
   return input.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'pet';
 }
 
+function clonePet<T extends PetState>(pet: T): T {
+  return JSON.parse(JSON.stringify(pet)) as T;
+}
+
 function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[] {
   const adventures = result.pet.hero.adventureLog.slice(-3).reverse();
-  if (adventures.length === 0) {
-    return ['最近還沒有冒險紀錄。'];
-  }
+  if (adventures.length === 0) return ['最近還沒有冒險紀錄。'];
 
   const lines: string[] = [];
   const dungeonInfo = result.pet.hero.dungeon.currentDungeon
@@ -37,15 +40,13 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 
   for (const item of adventures) {
     const place = item.dungeonName ? ` / ${item.dungeonName} / ${item.roomName ?? item.roomType ?? 'unknown'}` : '';
-    const base = `- Floor ${item.floor}${place} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`;
-    lines.push(base);
+    lines.push(`- Floor ${item.floor}${place} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`);
     lines.push(`  ${item.text}`);
 
     if (item.combat) {
       lines.push(`  戰鬥：對上 ${item.combat.enemy.label}，${item.combat.rounds} 回合，結果 ${item.combat.outcome}`);
       if (item.combat.skillsUsed.length > 0) {
-        const skillNames = item.combat.skillsUsed.map(skill => skill.skillLabel).join('、');
-        lines.push(`  技能：${skillNames}`);
+        lines.push(`  技能：${item.combat.skillsUsed.map(skill => skill.skillLabel).join('、')}`);
       }
       const turnTexts = item.combat.turns.slice(0, 3).map(turn => turn.text).join(' / ');
       if (turnTexts) lines.push(`  細節：${turnTexts}`);
@@ -164,6 +165,45 @@ function printSkills(): void {
   console.log(JSON.stringify(SKILLS, null, 2));
 }
 
+async function dungeonPreview(id: string): Promise<void> {
+  const pet = await loadPet(id);
+  const previewPet = clonePet(pet);
+  const at = getArg('at') ?? new Date().toISOString();
+  const floorArg = getArg('floor');
+  if (floorArg) {
+    const floor = Number(floorArg);
+    previewPet.hero.dungeon.floor = Math.max(1, floor - 1);
+  }
+  if (hasFlag('force-ready')) {
+    previewPet.needs.health = Math.max(previewPet.needs.health, 78);
+    previewPet.needs.energy = Math.max(previewPet.needs.energy, 76);
+    previewPet.needs.hunger = Math.min(previewPet.needs.hunger, 34);
+    previewPet.needs.thirst = Math.min(previewPet.needs.thirst, 30);
+  }
+
+  const before = JSON.parse(JSON.stringify({
+    floor: previewPet.hero.dungeon.floor,
+    runs: previewPet.hero.dungeon.runs,
+    needs: previewPet.needs
+  }));
+  const log = autoDungeonRun(previewPet, at);
+
+  console.log(JSON.stringify({
+    id: previewPet.id,
+    requestedAt: at,
+    forcedReady: hasFlag('force-ready'),
+    triggered: Boolean(log),
+    before,
+    log,
+    currentDungeon: previewPet.hero.dungeon.currentDungeon ?? null,
+    after: {
+      floor: previewPet.hero.dungeon.floor,
+      runs: previewPet.hero.dungeon.runs,
+      needs: previewPet.needs
+    }
+  }, null, 2));
+}
+
 async function combatPreview(id: string): Promise<void> {
   const pet = await loadPet(id);
   const result = simulatePet(pet);
@@ -189,7 +229,7 @@ async function combatPreview(id: string): Promise<void> {
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  dungeon-preview --id PET_ID [--floor N] [--at ISO] [--force-ready]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
     return;
   }
 
@@ -201,6 +241,11 @@ async function main(): Promise<void> {
     const id = getArg('id');
     if (!id) throw new Error('combat-preview 需要 --id');
     return combatPreview(id);
+  }
+  if (cmd === 'dungeon-preview') {
+    const id = getArg('id');
+    if (!id) throw new Error('dungeon-preview 需要 --id');
+    return dungeonPreview(id);
   }
   const id = getArg('id');
   if (!id) throw new Error(`${cmd} 需要 --id`);
