@@ -1,7 +1,33 @@
 export type Species = 'elf' | 'dwarf' | 'human' | 'orc' | 'dragon';
+export type HeroClass = 'berserker' | 'rogue' | 'mage';
 
 export type NeedKey = 'health' | 'hunger' | 'thirst' | 'mood' | 'energy' | 'hygiene';
 export type AttributeKey = 'strength' | 'agility' | 'intelligence' | 'vitality' | 'luck';
+export type DamageType = 'physical' | 'magic';
+export type ArmorType = 'cloth' | 'leather' | 'mail' | 'plate';
+export type WeaponTag =
+  | 'staff'
+  | 'dagger'
+  | 'shortblade'
+  | 'two-handed'
+  | 'axe'
+  | 'sword'
+  | 'mace'
+  | 'dual-wield';
+export type AbilityTag =
+  | 'physical-resistance'
+  | 'magic-vulnerability'
+  | 'anti-knockdown'
+  | 'anti-restrain'
+  | 'trap-detection'
+  | 'lockpicking'
+  | 'stealth'
+  | 'magic-food'
+  | 'alchemy'
+  | 'town-portal'
+  | 'elemental-magic'
+  | 'summoning'
+  | 'mind-control';
 
 export interface Needs {
   health: number;
@@ -51,6 +77,25 @@ export interface SpeciesConfig {
   };
 }
 
+export interface ClassConfig {
+  key: HeroClass;
+  label: string;
+  description: string;
+  favoredSpecies: Species[];
+  baseAttributeBias: Partial<Attributes>;
+  speciesAttributeBonus: Partial<Record<Species, Partial<Attributes>>>;
+  healthModifier: number;
+  physicalResistance: number;
+  magicResistance: number;
+  controlResistance: number;
+  moveSpeedModifier: number;
+  attackSpeedModifier: number;
+  preferredArmor: ArmorType[];
+  weaponTags: WeaponTag[];
+  abilities: AbilityTag[];
+  gameplayNotes: string[];
+}
+
 export interface PetEvent {
   at: string;
   type: string;
@@ -74,6 +119,12 @@ export interface DungeonProgress {
   runs: number;
 }
 
+export interface ClassProgress {
+  current: HeroClass;
+  unlocked: HeroClass[];
+  aptitude: Partial<Record<HeroClass, number>>;
+}
+
 export interface HeroProgress {
   level: number;
   exp: number;
@@ -82,6 +133,7 @@ export interface HeroProgress {
   gold: number;
   attributes: Attributes;
   dungeon: DungeonProgress;
+  classProgress: ClassProgress;
   adventureLog: AdventureLog[];
 }
 

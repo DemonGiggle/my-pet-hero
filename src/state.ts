@@ -1,8 +1,9 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import { PetState, Species } from './types.js';
+import { PetState, Species, HeroClass } from './types.js';
 import { SPECIES } from './species.js';
+import { applyClassAttributeBonus, recommendClass } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
 
 const needsSchema = z.object({
@@ -30,6 +31,13 @@ const attributesSchema = z.object({
   luck: z.number()
 });
 
+const heroClassSchema = z.enum(['berserker', 'rogue', 'mage']);
+const aptitudeSchema = z.object({
+  berserker: z.number(),
+  rogue: z.number(),
+  mage: z.number()
+});
+
 const petStateSchema = z.object({
   version: z.number(),
   id: z.string(),
@@ -54,6 +62,11 @@ const petStateSchema = z.object({
       floor: z.number(),
       deepestFloor: z.number(),
       runs: z.number()
+    }),
+    classProgress: z.object({
+      current: heroClassSchema,
+      unlocked: z.array(heroClassSchema),
+      aptitude: aptitudeSchema
     }),
     adventureLog: z.array(z.object({
       at: z.string(),
@@ -89,9 +102,19 @@ export async function savePet(pet: PetState, dataDir = DEFAULT_DATA_DIR): Promis
   await writeFile(petFilePath(pet.id, dataDir), JSON.stringify(pet, null, 2) + '\n', 'utf8');
 }
 
-export function createPet(params: { id: string; name: string; species: Species; now?: string }): PetState {
+function buildAptitude(species: Species): Record<HeroClass, number> {
+  const recommended = recommendClass(species);
+  return {
+    berserker: recommended === 'berserker' ? 1.15 : 1,
+    rogue: recommended === 'rogue' ? 1.15 : 1,
+    mage: recommended === 'mage' ? 1.15 : 1
+  };
+}
+
+export function createPet(params: { id: string; name: string; species: Species; heroClass?: HeroClass; now?: string }): PetState {
   const now = params.now ?? new Date().toISOString();
   const speciesConfig = SPECIES[params.species];
+  const currentClass = params.heroClass ?? recommendClass(params.species);
   const personality = {
     sociability: speciesConfig.temperament.sociability ?? 0.5,
     curiosity: speciesConfig.temperament.curiosity ?? 0.5,
@@ -100,8 +123,19 @@ export function createPet(params: { id: string; name: string; species: Species; 
     appetite: speciesConfig.temperament.appetite ?? 0.5
   };
 
+  const baseAttributes = {
+    strength: 8 + (speciesConfig.attributeBias.strength ?? 0),
+    agility: 8 + (speciesConfig.attributeBias.agility ?? 0),
+    intelligence: 8 + (speciesConfig.attributeBias.intelligence ?? 0),
+    vitality: 8 + (speciesConfig.attributeBias.vitality ?? 0),
+    luck: 8 + (speciesConfig.attributeBias.luck ?? 0)
+  };
+
+  const finalAttributes = applyClassAttributeBonus(params.species, currentClass, baseAttributes);
+  const aptitude = buildAptitude(params.species);
+
   return {
-    version: 2,
+    version: 3,
     id: params.id,
     name: params.name,
     species: params.species,
@@ -125,18 +159,17 @@ export function createPet(params: { id: string; name: string; species: Species; 
       expToNext: expToNextLevel(1),
       statPoints: 0,
       gold: 0,
-      attributes: {
-        strength: 8 + (speciesConfig.attributeBias.strength ?? 0),
-        agility: 8 + (speciesConfig.attributeBias.agility ?? 0),
-        intelligence: 8 + (speciesConfig.attributeBias.intelligence ?? 0),
-        vitality: 8 + (speciesConfig.attributeBias.vitality ?? 0),
-        luck: 8 + (speciesConfig.attributeBias.luck ?? 0)
-      },
+      attributes: finalAttributes,
       dungeon: {
         seed: randomSeed(),
         floor: 1,
         deepestFloor: 1,
         runs: 0
+      },
+      classProgress: {
+        current: currentClass,
+        unlocked: [currentClass],
+        aptitude
       },
       adventureLog: []
     },

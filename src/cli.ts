@@ -4,7 +4,8 @@ import { simulatePet } from './simulate.js';
 import { renderStatusCard } from './render.js';
 import { feedPet, playWithPet, cleanPet } from './actions.js';
 import { SPECIES_LIST } from './species.js';
-import { Species } from './types.js';
+import { CLASS_LIST, recommendClass } from './classes.js';
+import { HeroClass, Species } from './types.js';
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -24,6 +25,8 @@ async function printStatus(id: string): Promise<void> {
     id: result.pet.id,
     name: result.pet.name,
     species: result.pet.species,
+    heroClass: result.pet.hero.classProgress.current,
+    classUnlocked: result.pet.hero.classProgress.unlocked,
     level: result.pet.hero.level,
     exp: result.pet.hero.exp,
     expToNext: result.pet.hero.expToNext,
@@ -36,6 +39,7 @@ async function printStatus(id: string): Promise<void> {
     imagePath: rendered.outputPath,
     needs: result.pet.needs,
     attributes: result.pet.hero.attributes,
+    aptitude: result.pet.hero.classProgress.aptitude,
     events: result.events.slice(-5),
     adventures: result.pet.hero.adventureLog.slice(-3)
   }, null, 2));
@@ -53,6 +57,7 @@ async function mutate(id: string, action: 'feed' | 'play' | 'clean'): Promise<vo
   console.log(JSON.stringify({
     id: result.pet.id,
     action,
+    heroClass: result.pet.hero.classProgress.current,
     summary: actionText,
     imagePath: rendered.outputPath,
     needs: result.pet.needs,
@@ -66,31 +71,40 @@ async function mutate(id: string, action: 'feed' | 'play' | 'clean'): Promise<vo
 async function create(): Promise<void> {
   const name = getArg('name');
   const species = getArg('species') as Species | undefined;
+  const heroClass = getArg('class') as HeroClass | undefined;
   if (!name || !species) {
     throw new Error(`create 需要 --name 與 --species，可用種族: ${SPECIES_LIST.map(s => s.key).join(', ')}`);
   }
-  const pet = createPet({ id: slugify(name), name, species });
+  const pet = createPet({ id: slugify(name), name, species, heroClass });
   await savePet(pet);
   const rendered = await renderStatusCard({ pet, summary: `${pet.name}成為新的寵物勇者。` });
   console.log(JSON.stringify({
     id: pet.id,
     name: pet.name,
     species: pet.species,
+    heroClass: pet.hero.classProgress.current,
+    recommendedClass: recommendClass(pet.species),
     level: pet.hero.level,
     attributes: pet.hero.attributes,
+    aptitude: pet.hero.classProgress.aptitude,
     imagePath: rendered.outputPath,
     needs: pet.needs
   }, null, 2));
 }
 
+function printClasses(): void {
+  console.log(JSON.stringify(CLASS_LIST, null, 2));
+}
+
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon\n  status --id PET_ID\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID\n  classes\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
     return;
   }
 
   if (cmd === 'create') return create();
+  if (cmd === 'classes') return printClasses();
   const id = getArg('id');
   if (!id) throw new Error(`${cmd} 需要 --id`);
   if (cmd === 'status') return printStatus(id);
