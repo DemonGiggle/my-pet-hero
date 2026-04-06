@@ -1,0 +1,78 @@
+import { clamp, expToNextLevel, hashToUnit } from './utils.js';
+export function autoRecoverNeeds(pet, at) {
+    const notes = [];
+    if (pet.needs.hunger >= 72) {
+        pet.needs.hunger = clamp(pet.needs.hunger - 18);
+        pet.needs.energy = clamp(pet.needs.energy - 4);
+        pet.needs.mood = clamp(pet.needs.mood + 2);
+        notes.push('自己去找了點食物吃。');
+    }
+    if (pet.needs.thirst >= 70) {
+        pet.needs.thirst = clamp(pet.needs.thirst - 22);
+        pet.needs.mood = clamp(pet.needs.mood + 1);
+        notes.push('自己找到水喝，沒有渴太久。');
+    }
+    if (notes.length > 0) {
+        pet.history.push({ at, type: 'self-care', delta: { hunger: -18, thirst: -22, mood: 3, energy: -4 }, text: notes.join('') });
+        pet.history = pet.history.slice(-30);
+    }
+    return notes;
+}
+export function gainExp(pet, amount) {
+    const notes = [];
+    pet.hero.exp += amount;
+    while (pet.hero.exp >= pet.hero.expToNext) {
+        pet.hero.exp -= pet.hero.expToNext;
+        pet.hero.level += 1;
+        pet.hero.statPoints += 3;
+        pet.hero.expToNext = expToNextLevel(pet.hero.level);
+        pet.hero.attributes = applyAutoStatGrowth(pet.hero.attributes, pet.hero.level);
+        notes.push(`升到 Lv.${pet.hero.level}`);
+    }
+    return notes;
+}
+export function applyAutoStatGrowth(attributes, level) {
+    return {
+        strength: attributes.strength + (level % 2 === 0 ? 1 : 0),
+        agility: attributes.agility + 1,
+        intelligence: attributes.intelligence + (level % 3 === 0 ? 1 : 0),
+        vitality: attributes.vitality + 1,
+        luck: attributes.luck + (level % 4 === 0 ? 1 : 0)
+    };
+}
+export function autoDungeonRun(pet, at) {
+    if (pet.needs.energy < 35 || pet.needs.health < 35)
+        return null;
+    const urge = pet.personality.curiosity * 0.5 + pet.personality.playfulness * 0.2 + pet.hero.level * 0.03;
+    const roll = hashToUnit(`${pet.seed}:dungeon:${at}`);
+    if (roll > Math.min(0.28 + urge, 0.72))
+        return null;
+    const floor = Math.max(1, pet.hero.dungeon.floor + 1);
+    const power = pet.hero.attributes.strength * 1.2 + pet.hero.attributes.agility + pet.hero.attributes.intelligence + pet.hero.attributes.vitality * 1.1 + pet.hero.level * 3;
+    const difficulty = 14 + floor * 4 + hashToUnit(`${pet.seed}:dungeon:diff:${at}`) * 10;
+    let outcome = 'win';
+    if (power + hashToUnit(`${pet.seed}:dungeon:combat:${at}`) * 18 < difficulty)
+        outcome = 'escape';
+    else if (hashToUnit(`${pet.seed}:dungeon:treasure:${at}`) > 0.82)
+        outcome = 'treasure';
+    const exp = outcome === 'win' ? 10 + floor * 4 : outcome === 'treasure' ? 8 + floor * 3 : 4 + floor * 2;
+    const gold = outcome === 'treasure' ? 12 + floor * 5 : outcome === 'win' ? 6 + floor * 2 : 2 + floor;
+    pet.needs.energy = clamp(pet.needs.energy - (10 + floor * 1.5));
+    pet.needs.hunger = clamp(pet.needs.hunger + (8 + floor));
+    pet.needs.thirst = clamp(pet.needs.thirst + (10 + floor));
+    pet.needs.mood = clamp(pet.needs.mood + (outcome === 'escape' ? -4 : 6));
+    pet.needs.health = clamp(pet.needs.health - (outcome === 'escape' ? 8 : 2));
+    pet.hero.gold += gold;
+    gainExp(pet, exp);
+    pet.hero.dungeon.floor = outcome === 'escape' ? Math.max(1, floor - 1) : floor;
+    pet.hero.dungeon.deepestFloor = Math.max(pet.hero.dungeon.deepestFloor, floor);
+    pet.hero.dungeon.runs += 1;
+    const text = outcome === 'treasure'
+        ? `闖到迷宮 ${floor} 層，順手帶回寶物。`
+        : outcome === 'win'
+            ? `闖過迷宮 ${floor} 層並打贏遭遇戰。`
+            : `在迷宮 ${floor} 層感覺不妙，及時撤退。`;
+    const log = { at, floor, outcome, text, expGained: exp, goldGained: gold };
+    pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-20);
+    return log;
+}

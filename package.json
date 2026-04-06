@@ -1,0 +1,29 @@
+{
+  "name": "my-pet-hero",
+  "version": "0.1.0",
+  "description": "My Pet Hero (我的寵物勇者) — lightweight query-time virtual pet simulator",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "render": "tsx src/cli.ts status",
+    "create": "tsx src/cli.ts create"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": "true",
+  "type": "module",
+  "dependencies": {
+    "pngjs": "^7.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
