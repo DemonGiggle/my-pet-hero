@@ -14,8 +14,43 @@ function getArg(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function hasFlag(name: string): boolean {
+  return process.argv.includes(`--${name}`);
+}
+
 function slugify(input: string): string {
   return input.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'pet';
+}
+
+function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[] {
+  const adventures = result.pet.hero.adventureLog.slice(-3).reverse();
+  if (adventures.length === 0) {
+    return ['最近還沒有冒險紀錄。'];
+  }
+
+  const lines: string[] = [];
+  lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，目前在迷宮 ${result.pet.hero.dungeon.floor} 層。`);
+  lines.push('最近冒險：');
+
+  for (const item of adventures) {
+    const base = `- Floor ${item.floor} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`;
+    lines.push(base);
+    lines.push(`  ${item.text}`);
+
+    if (item.combat) {
+      lines.push(`  戰鬥：對上 ${item.combat.enemy.label}，${item.combat.rounds} 回合，結果 ${item.combat.outcome}`);
+      if (item.combat.skillsUsed.length > 0) {
+        const skillNames = item.combat.skillsUsed.map(skill => skill.skillLabel).join('、');
+        lines.push(`  技能：${skillNames}`);
+      }
+      const turnTexts = item.combat.turns.slice(0, 3).map(turn => turn.text).join(' / ');
+      if (turnTexts) {
+        lines.push(`  細節：${turnTexts}`);
+      }
+    }
+  }
+
+  return lines;
 }
 
 async function printStatus(id: string): Promise<void> {
@@ -23,7 +58,8 @@ async function printStatus(id: string): Promise<void> {
   const result = simulatePet(pet);
   await savePet(result.pet);
   const rendered = await renderStatusCard({ pet: result.pet, summary: result.summary });
-  console.log(JSON.stringify({
+
+  const payload: Record<string, unknown> = {
     id: result.pet.id,
     name: result.pet.name,
     species: result.pet.species,
@@ -45,7 +81,13 @@ async function printStatus(id: string): Promise<void> {
     aptitude: result.pet.hero.classProgress.aptitude,
     events: result.events.slice(-5),
     adventures: result.pet.hero.adventureLog.slice(-3)
-  }, null, 2));
+  };
+
+  if (hasFlag('report')) {
+    payload.report = formatAdventureReport(result).join('\n');
+  }
+
+  console.log(JSON.stringify(payload, null, 2));
 }
 
 async function mutate(id: string, action: 'feed' | 'play' | 'clean'): Promise<void> {
@@ -133,7 +175,7 @@ async function combatPreview(id: string): Promise<void> {
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
     return;
   }
 
