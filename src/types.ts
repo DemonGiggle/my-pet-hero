@@ -202,6 +202,22 @@ export interface AdventureLog {
   dungeonName?: string;
   roomName?: string;
   roomType?: DungeonRoomType;
+  rewards?: string[];
+  roomSummary?: string;
+  roomEffect?: {
+    health?: number;
+    energy?: number;
+    mood?: number;
+    hunger?: number;
+    thirst?: number;
+  };
+  runState?: {
+    roomIndex: number;
+    roomCount: number;
+    clearedRoomIds: string[];
+    discoveredRoomIds: string[];
+    completedDungeon: boolean;
+  };
 }
 
 export interface DungeonRoom {

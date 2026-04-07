@@ -70,57 +70,88 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   const dungeon = ensureDungeonInstance(pet, floor, at);
   const room = getCurrentRoom(dungeon) ?? dungeon.rooms[0];
   const treasureBias = heroClass.abilities.includes('lockpicking') ? 0.12 : 0;
+  const roomIndex = Math.max(1, dungeon.rooms.findIndex(candidate => candidate.id === room.id) + 1);
+  const rewards: string[] = [];
+  const roomEffect: AdventureLog['roomEffect'] = {};
 
   let outcome: AdventureLog['outcome'];
   let exp = 0;
   let gold = 0;
   let text = '';
+  let roomSummary = '';
   let combat;
 
   if (room.type === 'rest') {
     outcome = 'rest';
     exp = 4;
-    gold = 0;
-    pet.needs.energy = clamp(pet.needs.energy + 18);
-    pet.needs.health = clamp(pet.needs.health + 6);
-    pet.needs.mood = clamp(pet.needs.mood + 4);
+    roomEffect.energy = 18;
+    roomEffect.health = 6;
+    roomEffect.mood = 4;
+    pet.needs.energy = clamp(pet.needs.energy + roomEffect.energy);
+    pet.needs.health = clamp(pet.needs.health + roomEffect.health);
+    pet.needs.mood = clamp(pet.needs.mood + roomEffect.mood);
+    roomSummary = '休息點，主打回復。';
+    rewards.push(`回復 HP +${roomEffect.health}`, `回復 ENERGY +${roomEffect.energy}`);
     text = `${pet.name} 在 ${dungeon.name} 的${room.name}稍作休息，恢復了一點精神。`;
   } else if (room.type === 'treasure' || (room.type === 'event' && hashToUnit(`${pet.seed}:event-treasure:${at}`) > 0.5 - treasureBias)) {
     outcome = 'treasure';
     exp = Math.round((8 + floor * 3) * affinity);
-    gold = 14 + floor * 5;
-    pet.needs.energy = clamp(pet.needs.energy - (8 + floor));
-    pet.needs.hunger = clamp(pet.needs.hunger + (6 + floor));
-    pet.needs.thirst = clamp(pet.needs.thirst + (7 + floor));
-    pet.needs.mood = clamp(pet.needs.mood + 8);
-    pet.needs.health = clamp(pet.needs.health - 1);
+    gold = 14 + floor * 5 + (room.type === 'treasure' ? 6 : 0);
+    roomEffect.energy = -(8 + floor);
+    roomEffect.hunger = 6 + floor;
+    roomEffect.thirst = 7 + floor;
+    roomEffect.mood = 8;
+    roomEffect.health = -1;
+    pet.needs.energy = clamp(pet.needs.energy + roomEffect.energy);
+    pet.needs.hunger = clamp(pet.needs.hunger + roomEffect.hunger);
+    pet.needs.thirst = clamp(pet.needs.thirst + roomEffect.thirst);
+    pet.needs.mood = clamp(pet.needs.mood + roomEffect.mood);
+    pet.needs.health = clamp(pet.needs.health + roomEffect.health);
+    roomSummary = room.type === 'treasure' ? '寶物房，收益高但會消耗體力。' : '事件房觸發寶箱支線。';
+    rewards.push(`EXP +${exp}`, `Gold +${gold}`);
     text = `${pet.name} 在 ${dungeon.name} 的${room.name}找到寶箱，帶回一批戰利品。`;
   } else if (room.type === 'event') {
     outcome = 'rest';
     exp = 6;
     gold = 3 + floor;
-    pet.needs.mood = clamp(pet.needs.mood + 5);
-    pet.needs.energy = clamp(pet.needs.energy - 4);
+    roomEffect.mood = 5;
+    roomEffect.energy = -4;
+    pet.needs.mood = clamp(pet.needs.mood + roomEffect.mood);
+    pet.needs.energy = clamp(pet.needs.energy + roomEffect.energy);
+    roomSummary = '事件房，沒有正面戰鬥，但會給小獎勵或狀態波動。';
+    rewards.push(`EXP +${exp}`, `Gold +${gold}`, `MOOD +${roomEffect.mood}`);
     text = `${pet.name} 在 ${dungeon.name} 的${room.name}遇到奇異事件，雖然沒開打，但也不是白跑一趟。`;
   } else {
-    combat = runCombat(pet, floor, at);
+    combat = runCombat(pet, floor + (room.type === 'boss' ? 2 : room.type === 'elite' ? 1 : 0), at);
     outcome = combat.outcome;
-    exp = Math.round(combat.expGained * affinity);
-    gold = combat.goldGained;
+    const rewardScale = room.type === 'boss' ? 2.2 : room.type === 'elite' ? 1.45 : 1;
+    exp = Math.round(combat.expGained * affinity * rewardScale);
+    gold = Math.round(combat.goldGained * rewardScale + (room.type === 'boss' ? floor * 6 : 0));
     const healthPercentLoss = (combat.healthLoss / Math.max(1, combat.hero.maxHealth)) * 100;
-    pet.needs.health = clamp(pet.needs.health - healthPercentLoss);
-    pet.needs.energy = clamp(pet.needs.energy - (10 + floor * 1.6));
-    pet.needs.hunger = clamp(pet.needs.hunger + (8 + floor));
-    pet.needs.thirst = clamp(pet.needs.thirst + (10 + floor));
-    pet.needs.mood = clamp(pet.needs.mood + combat.moodDelta);
+    roomEffect.health = -Number(healthPercentLoss.toFixed(1));
+    roomEffect.energy = -(10 + floor * 1.6 + (room.type === 'boss' ? 8 : room.type === 'elite' ? 4 : 0));
+    roomEffect.hunger = 8 + floor + (room.type === 'boss' ? 2 : 0);
+    roomEffect.thirst = 10 + floor + (room.type === 'boss' ? 2 : 0);
+    roomEffect.mood = combat.moodDelta + (room.type === 'boss' ? 4 : room.type === 'elite' ? 2 : 0);
+    pet.needs.health = clamp(pet.needs.health + roomEffect.health);
+    pet.needs.energy = clamp(pet.needs.energy + roomEffect.energy);
+    pet.needs.hunger = clamp(pet.needs.hunger + roomEffect.hunger);
+    pet.needs.thirst = clamp(pet.needs.thirst + roomEffect.thirst);
+    pet.needs.mood = clamp(pet.needs.mood + roomEffect.mood);
+    roomSummary = room.type === 'boss' ? 'Boss 房，戰鬥壓力最高，獎勵也最大。'
+      : room.type === 'elite' ? 'Elite 房，強敵與加成獎勵。'
+      : '一般戰鬥房。';
+    rewards.push(`EXP +${exp}`, `Gold +${gold}`);
     text = `${pet.name} 在 ${dungeon.name} 的${room.name}${combat.text.replace(`${pet.name} `, '')}`;
   }
 
   pet.hero.gold += gold;
-  gainExp(pet, exp);
+  const levelNotes = gainExp(pet, exp);
+  rewards.push(...levelNotes);
 
   const nextRoom = advanceDungeonRoom(dungeon);
-  if ((outcome === 'win' || outcome === 'treasure' || outcome === 'rest') && !nextRoom) {
+  const completedDungeon = (outcome === 'win' || outcome === 'treasure' || outcome === 'rest') && !nextRoom;
+  if (completedDungeon) {
     pet.hero.dungeon.floor = floor;
     pet.hero.dungeon.currentDungeon = undefined;
   } else if (outcome === 'defeat') {
@@ -143,8 +174,18 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
     combat,
     dungeonName: dungeon.name,
     roomName: room.name,
-    roomType: room.type
+    roomType: room.type,
+    rewards,
+    roomSummary,
+    roomEffect,
+    runState: {
+      roomIndex,
+      roomCount: dungeon.rooms.length,
+      clearedRoomIds: [...dungeon.clearedRoomIds],
+      discoveredRoomIds: [...dungeon.discoveredRoomIds],
+      completedDungeon
+    }
   };
-  pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-20);
+  pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-30);
   return log;
 }

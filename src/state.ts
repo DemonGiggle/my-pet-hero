@@ -171,7 +171,23 @@ const petStateSchema = z.object({
       combat: combatResultSchema.optional(),
       dungeonName: z.string().optional(),
       roomName: z.string().optional(),
-      roomType: z.enum(['entrance', 'battle', 'elite', 'treasure', 'event', 'rest', 'shop', 'boss']).optional()
+      roomType: z.enum(['entrance', 'battle', 'elite', 'treasure', 'event', 'rest', 'shop', 'boss']).optional(),
+      rewards: z.array(z.string()).optional(),
+      roomSummary: z.string().optional(),
+      roomEffect: z.object({
+        health: z.number().optional(),
+        energy: z.number().optional(),
+        mood: z.number().optional(),
+        hunger: z.number().optional(),
+        thirst: z.number().optional()
+      }).optional(),
+      runState: z.object({
+        roomIndex: z.number(),
+        roomCount: z.number(),
+        clearedRoomIds: z.array(z.string()),
+        discoveredRoomIds: z.array(z.string()),
+        completedDungeon: z.boolean()
+      }).optional()
     }))
   }),
   history: z.array(z.object({

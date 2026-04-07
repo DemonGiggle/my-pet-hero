@@ -40,8 +40,11 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 
   for (const item of adventures) {
     const place = item.dungeonName ? ` / ${item.dungeonName} / ${item.roomName ?? item.roomType ?? 'unknown'}` : '';
-    lines.push(`- Floor ${item.floor}${place} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`);
+    const progress = item.runState ? ` / ${item.runState.roomIndex}-${item.runState.roomCount}` : '';
+    lines.push(`- Floor ${item.floor}${place}${progress} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`);
     lines.push(`  ${item.text}`);
+    if (item.roomSummary) lines.push(`  房型：${item.roomSummary}`);
+    if (item.rewards && item.rewards.length > 0) lines.push(`  收益：${item.rewards.join('、')}`);
 
     if (item.combat) {
       lines.push(`  戰鬥：對上 ${item.combat.enemy.label}，${item.combat.rounds} 回合，結果 ${item.combat.outcome}`);
@@ -170,6 +173,7 @@ async function dungeonPreview(id: string): Promise<void> {
   const previewPet = clonePet(pet);
   const at = getArg('at') ?? new Date().toISOString();
   const floorArg = getArg('floor');
+  const repeat = Math.max(1, Number(getArg('repeat') ?? '1'));
   if (floorArg) {
     const floor = Number(floorArg);
     previewPet.hero.dungeon.floor = Math.max(1, floor - 1);
@@ -186,15 +190,22 @@ async function dungeonPreview(id: string): Promise<void> {
     runs: previewPet.hero.dungeon.runs,
     needs: previewPet.needs
   }));
-  const log = autoDungeonRun(previewPet, at);
+  const logs = [];
+  for (let i = 0; i < repeat; i++) {
+    const runAt = new Date(new Date(at).getTime() + i * 60_000).toISOString();
+    const log = autoDungeonRun(previewPet, runAt);
+    if (!log) break;
+    logs.push(log);
+  }
 
   console.log(JSON.stringify({
     id: previewPet.id,
     requestedAt: at,
     forcedReady: hasFlag('force-ready'),
-    triggered: Boolean(log),
+    repeat,
+    triggered: logs.length > 0,
     before,
-    log,
+    logs,
     currentDungeon: previewPet.hero.dungeon.currentDungeon ?? null,
     after: {
       floor: previewPet.hero.dungeon.floor,
@@ -229,7 +240,7 @@ async function combatPreview(id: string): Promise<void> {
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  dungeon-preview --id PET_ID [--floor N] [--at ISO] [--force-ready]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  dungeon-preview --id PET_ID [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
     return;
   }
 

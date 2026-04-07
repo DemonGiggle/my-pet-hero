@@ -94,23 +94,23 @@
 目標：讓不同房間真正有功能差異，不只是名字不同。
 
 ### Scope
-- [~] battle room 明確化
-- [~] elite room 明確化
-- [~] boss room 明確化
-- [~] treasure room reward flow
-- [~] rest room recovery flow
-- [~] event room event flow
-- [ ] exploration record / run log 整理
-- [ ] 在 status/report 裡清楚顯示最近探索內容
-- [ ] 檢查 room outcome 與 combat/reward 的一致性
+- [x] battle room 明確化
+- [x] elite room 明確化
+- [x] boss room 明確化
+- [x] treasure room reward flow
+- [x] rest room recovery flow
+- [x] event room event flow
+- [x] exploration record / run log 整理
+- [x] 在 status/report 裡清楚顯示最近探索內容
+- [x] 檢查 room outcome 與 combat/reward 的一致性
 
 ### Concrete Tasks
-- [ ] 定義各 room type 的正式 outcome contract
-- [ ] boss / elite 與一般 battle 的獎勵差異
-- [ ] treasure / event / rest 的文本與數值規則整理
-- [ ] 將探索過程寫入 adventure log / exploration log
-- [ ] 補 CLI 預覽或報表輸出，方便 debug
-- [ ] 實測至少一輪 event / treasure / rest / elite / boss
+- [x] 定義各 room type 的正式 outcome contract
+- [x] boss / elite 與一般 battle 的獎勵差異
+- [x] treasure / event / rest 的文本與數值規則整理
+- [x] 將探索過程寫入 adventure log / exploration log
+- [x] 補 CLI 預覽或報表輸出，方便 debug
+- [x] 實測至少一輪 event / treasure / rest / elite / boss
 - [ ] commit / push
 
 ### Exit Criteria
@@ -215,10 +215,10 @@
 - [~] M3 - Dungeon Phase 2: room outcomes and exploration records
 
 ### Immediate Next Tasks
-- [ ] 把 Phase 2 做成正式可驗證版本
-- [ ] build + run real validation
+- [x] 把 Phase 2 做成正式可驗證版本
+- [x] build + run real validation
 - [ ] commit / push
-- [ ] 更新這份 plan 的狀態
+- [x] 更新這份 plan 的狀態
 
 ---
 
