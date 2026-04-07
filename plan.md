@@ -217,8 +217,29 @@
 ### Immediate Next Tasks
 - [x] 把 Phase 2 做成正式可驗證版本
 - [x] build + run real validation
-- [ ] commit / push
+- [x] commit / push
 - [x] 更新這份 plan 的狀態
+
+---
+
+## M3.5 - Village and expedition loop
+
+目標：建立「村莊 → 地下城 → boss 房傳送門 → 回村」的完整探險週期。
+
+### Scope
+- [ ] village state / location state
+- [ ] expedition run model
+- [ ] 村莊自動整補流程
+- [ ] 地下城出發與回村邏輯
+- [ ] boss 房傳送門回村
+- [ ] expedition summary / history
+- [ ] status/report 顯示村莊與探險狀態
+
+### Exit Criteria
+- 角色有明確 location: village / dungeon
+- 每次探險都有完整開始與結束
+- 打完 boss 後可透過 portal 回村
+- 能查看完整 expedition summary
 
 ---
 

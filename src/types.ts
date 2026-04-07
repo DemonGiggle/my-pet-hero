@@ -262,12 +262,40 @@ export interface DungeonInstance {
   description: string;
 }
 
+export interface ExpeditionSummary {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  dungeonName: string;
+  floor: number;
+  status: 'preparing' | 'exploring' | 'returned' | 'failed';
+  returnMode?: 'portal' | 'retreat' | 'defeat';
+  roomsCleared: number;
+  totalRooms: number;
+  bossDefeated: boolean;
+  logs: AdventureLog[];
+}
+
+export interface VillageState {
+  name: string;
+  supplies: {
+    food: number;
+    water: number;
+    herbs: number;
+  };
+  lastVisitedAt: string;
+}
+
 export interface DungeonProgress {
   seed: number;
   floor: number;
   deepestFloor: number;
   runs: number;
+  location: 'village' | 'dungeon';
   currentDungeon?: DungeonInstance;
+  currentExpedition?: ExpeditionSummary;
+  expeditionHistory: ExpeditionSummary[];
+  village: VillageState;
 }
 
 export interface ClassProgress {

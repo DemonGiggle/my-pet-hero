@@ -53,12 +53,51 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
   if (!current || current.floor !== floor) {
     const created = generateDungeonInstance({ pet, floor, at });
     pet.hero.dungeon.currentDungeon = created;
+    pet.hero.dungeon.location = 'dungeon';
+    pet.hero.dungeon.currentExpedition = {
+      id: `exp-${floor}-${Date.parse(at)}`,
+      startedAt: at,
+      dungeonName: created.name,
+      floor,
+      status: 'exploring',
+      roomsCleared: 0,
+      totalRooms: created.rooms.length,
+      bossDefeated: false,
+      logs: []
+    };
     return created;
   }
   return current;
 }
 
+function runVillageRecovery(pet: PetState, at: string): string[] {
+  const notes: string[] = [];
+  pet.hero.dungeon.location = 'village';
+  pet.hero.dungeon.village.lastVisitedAt = at;
+  if (pet.needs.energy < 82) {
+    pet.needs.energy = clamp(pet.needs.energy + 26);
+    notes.push('在村莊旅店休息，恢復了不少精神。');
+  }
+  if (pet.needs.health < 78) {
+    pet.needs.health = clamp(pet.needs.health + 12);
+    notes.push('在村裡整理傷勢，氣色好了一些。');
+  }
+  if (pet.needs.hunger > 40 && pet.hero.dungeon.village.supplies.food > 0) {
+    pet.needs.hunger = clamp(pet.needs.hunger - 22);
+    pet.hero.dungeon.village.supplies.food -= 1;
+    notes.push('在村裡吃了一頓熱食。');
+  }
+  if (pet.needs.thirst > 38 && pet.hero.dungeon.village.supplies.water > 0) {
+    pet.needs.thirst = clamp(pet.needs.thirst - 24);
+    pet.hero.dungeon.village.supplies.water -= 1;
+    notes.push('補滿了水袋，也順便解了渴。');
+  }
+  pet.needs.mood = clamp(pet.needs.mood + (notes.length > 0 ? 6 : 2));
+  return notes;
+}
+
 export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
+  if (pet.hero.dungeon.location === 'village') runVillageRecovery(pet, at);
   if (pet.needs.energy < 35 || pet.needs.health < 35) return null;
   const heroClass = CLASSES[pet.hero.classProgress.current];
   const affinity = getClassAffinity(pet.hero.classProgress.current, pet.species);
@@ -154,11 +193,32 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   if (completedDungeon) {
     pet.hero.dungeon.floor = floor;
     pet.hero.dungeon.currentDungeon = undefined;
+    pet.hero.dungeon.location = 'village';
+    if (pet.hero.dungeon.currentExpedition) {
+      pet.hero.dungeon.currentExpedition.status = 'returned';
+      pet.hero.dungeon.currentExpedition.returnMode = 'portal';
+      pet.hero.dungeon.currentExpedition.endedAt = at;
+      pet.hero.dungeon.currentExpedition.bossDefeated = room.type === 'boss';
+    }
+    text += ' 最深處出現了傳送門，隨後返回村莊。';
+    runVillageRecovery(pet, at);
   } else if (outcome === 'defeat') {
     pet.hero.dungeon.floor = Math.max(1, floor - 1);
     pet.hero.dungeon.currentDungeon = undefined;
+    pet.hero.dungeon.location = 'village';
+    if (pet.hero.dungeon.currentExpedition) {
+      pet.hero.dungeon.currentExpedition.status = 'failed';
+      pet.hero.dungeon.currentExpedition.returnMode = 'defeat';
+      pet.hero.dungeon.currentExpedition.endedAt = at;
+    }
   } else if (outcome === 'escape') {
     pet.hero.dungeon.floor = Math.max(1, floor - 1);
+    pet.hero.dungeon.location = 'village';
+    if (pet.hero.dungeon.currentExpedition) {
+      pet.hero.dungeon.currentExpedition.status = 'returned';
+      pet.hero.dungeon.currentExpedition.returnMode = 'retreat';
+      pet.hero.dungeon.currentExpedition.endedAt = at;
+    }
   }
 
   pet.hero.dungeon.deepestFloor = Math.max(pet.hero.dungeon.deepestFloor, floor);
@@ -187,5 +247,15 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
     }
   };
   pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-30);
+  if (pet.hero.dungeon.currentExpedition) {
+    pet.hero.dungeon.currentExpedition.logs = [...pet.hero.dungeon.currentExpedition.logs, log];
+    pet.hero.dungeon.currentExpedition.roomsCleared = log.runState?.roomIndex ?? pet.hero.dungeon.currentExpedition.roomsCleared;
+    pet.hero.dungeon.currentExpedition.totalRooms = log.runState?.roomCount ?? pet.hero.dungeon.currentExpedition.totalRooms;
+    if (room.type === 'boss' && outcome === 'win') pet.hero.dungeon.currentExpedition.bossDefeated = true;
+    if (pet.hero.dungeon.currentExpedition.status === 'returned' || pet.hero.dungeon.currentExpedition.status === 'failed') {
+      pet.hero.dungeon.expeditionHistory = [...pet.hero.dungeon.expeditionHistory, pet.hero.dungeon.currentExpedition].slice(-12);
+      pet.hero.dungeon.currentExpedition = undefined;
+    }
+  }
   return log;
 }

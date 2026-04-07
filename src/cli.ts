@@ -35,8 +35,18 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
   const dungeonInfo = result.pet.hero.dungeon.currentDungeon
     ? `，正在探索 ${result.pet.hero.dungeon.currentDungeon.name}`
     : '';
-  lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，目前在迷宮 ${result.pet.hero.dungeon.floor} 層${dungeonInfo}。`);
+  const locationText = result.pet.hero.dungeon.location === 'village'
+    ? `目前在村莊 ${result.pet.hero.dungeon.village.name}。`
+    : `目前在迷宮 ${result.pet.hero.dungeon.floor} 層${dungeonInfo}。`;
+  lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，${locationText}`);
   lines.push('最近冒險：');
+
+  if (result.pet.hero.dungeon.currentExpedition) {
+    lines.push(`當前探險：${result.pet.hero.dungeon.currentExpedition.dungeonName}，${result.pet.hero.dungeon.currentExpedition.roomsCleared}/${result.pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
+  } else if (result.pet.hero.dungeon.expeditionHistory.length > 0) {
+    const latest = result.pet.hero.dungeon.expeditionHistory[result.pet.hero.dungeon.expeditionHistory.length - 1];
+    lines.push(`上一趟探險：${latest.dungeonName}，結果 ${latest.status}${latest.returnMode ? ` / ${latest.returnMode}` : ''}。`);
+  }
 
   for (const item of adventures) {
     const place = item.dungeonName ? ` / ${item.dungeonName} / ${item.roomName ?? item.roomType ?? 'unknown'}` : '';
@@ -68,6 +78,10 @@ async function printStatus(id: string): Promise<void> {
   const currentRoom = currentDungeon?.rooms.find(room => room.id === currentDungeon.currentRoomId);
 
   const payload: Record<string, unknown> = {
+    location: result.pet.hero.dungeon.location,
+    village: result.pet.hero.dungeon.village,
+    currentExpedition: result.pet.hero.dungeon.currentExpedition ?? null,
+    expeditionHistory: result.pet.hero.dungeon.expeditionHistory.slice(-3),
     id: result.pet.id,
     name: result.pet.name,
     species: result.pet.species,

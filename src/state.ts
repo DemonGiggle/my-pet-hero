@@ -154,7 +154,47 @@ const petStateSchema = z.object({
       floor: z.number(),
       deepestFloor: z.number(),
       runs: z.number(),
-      currentDungeon: dungeonInstanceSchema.optional()
+      location: z.enum(['village', 'dungeon']).default('village'),
+      currentDungeon: dungeonInstanceSchema.optional(),
+      currentExpedition: z.object({
+        id: z.string(),
+        startedAt: z.string(),
+        endedAt: z.string().optional(),
+        dungeonName: z.string(),
+        floor: z.number(),
+        status: z.enum(['preparing', 'exploring', 'returned', 'failed']),
+        returnMode: z.enum(['portal', 'retreat', 'defeat']).optional(),
+        roomsCleared: z.number(),
+        totalRooms: z.number(),
+        bossDefeated: z.boolean(),
+        logs: z.array(z.any())
+      }).optional(),
+      expeditionHistory: z.array(z.object({
+        id: z.string(),
+        startedAt: z.string(),
+        endedAt: z.string().optional(),
+        dungeonName: z.string(),
+        floor: z.number(),
+        status: z.enum(['preparing', 'exploring', 'returned', 'failed']),
+        returnMode: z.enum(['portal', 'retreat', 'defeat']).optional(),
+        roomsCleared: z.number(),
+        totalRooms: z.number(),
+        bossDefeated: z.boolean(),
+        logs: z.array(z.any())
+      })).default([]),
+      village: z.object({
+        name: z.string().default('晨霧村'),
+        supplies: z.object({
+          food: z.number().default(3),
+          water: z.number().default(3),
+          herbs: z.number().default(1)
+        }),
+        lastVisitedAt: z.string()
+      }).default({
+        name: '晨霧村',
+        supplies: { food: 3, water: 3, herbs: 1 },
+        lastVisitedAt: new Date().toISOString()
+      })
     }),
     classProgress: z.object({
       current: heroClassSchema,
@@ -276,7 +316,14 @@ export function createPet(params: { id: string; name: string; species: Species; 
         seed: randomSeed(),
         floor: 1,
         deepestFloor: 1,
-        runs: 0
+        runs: 0,
+        location: 'village',
+        expeditionHistory: [],
+        village: {
+          name: '晨霧村',
+          supplies: { food: 3, water: 3, herbs: 1 },
+          lastVisitedAt: now
+        }
       },
       classProgress: {
         current: currentClass,
