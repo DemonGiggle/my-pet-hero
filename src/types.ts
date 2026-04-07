@@ -277,6 +277,7 @@ export interface ExpeditionSummary {
   totalGoldGained: number;
   villagePreparation: string[];
   returnSummary?: string;
+  completed: boolean;
   logs: AdventureLog[];
 }
 

@@ -33,7 +33,8 @@ function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expedi
     `- 結果：${expedition.status}${expedition.returnMode ? ` / ${expedition.returnMode}` : ''}`,
     `- 進度：${expedition.roomsCleared}/${expedition.totalRooms} 房`,
     `- 收益：EXP +${expedition.totalExpGained} / Gold +${expedition.totalGoldGained}`,
-    `- Boss：${expedition.bossDefeated ? '已擊破' : '未擊破'}`
+    `- Boss：${expedition.bossDefeated ? '已擊破' : '未擊破'}`,
+    `- 完成：${expedition.completed ? '已完整結束' : '尚未結束'}`
   ];
   if (expedition.villagePreparation.length > 0) lines.push(`- 村莊整備：${expedition.villagePreparation.join('、')}`);
   if (expedition.returnSummary) lines.push(`- 回村：${expedition.returnSummary}`);
@@ -242,10 +243,13 @@ async function dungeonPreview(id: string): Promise<void> {
     before,
     logs,
     currentDungeon: previewPet.hero.dungeon.currentDungeon ?? null,
+    currentExpedition: previewPet.hero.dungeon.currentExpedition ?? null,
+    expeditionHistory: previewPet.hero.dungeon.expeditionHistory,
     after: {
       floor: previewPet.hero.dungeon.floor,
       runs: previewPet.hero.dungeon.runs,
-      needs: previewPet.needs
+      needs: previewPet.needs,
+      location: previewPet.hero.dungeon.location
     }
   }, null, 2));
 }

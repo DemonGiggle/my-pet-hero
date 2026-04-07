@@ -171,6 +171,7 @@ const petStateSchema = z.object({
         totalGoldGained: z.number().default(0),
         villagePreparation: z.array(z.string()).default([]),
         returnSummary: z.string().optional(),
+        completed: z.boolean().default(false),
         logs: z.array(z.any())
       }).optional(),
       expeditionHistory: z.array(z.object({
@@ -188,6 +189,7 @@ const petStateSchema = z.object({
         totalGoldGained: z.number().default(0),
         villagePreparation: z.array(z.string()).default([]),
         returnSummary: z.string().optional(),
+        completed: z.boolean().default(false),
         logs: z.array(z.any())
       })).default([]),
       village: z.object({

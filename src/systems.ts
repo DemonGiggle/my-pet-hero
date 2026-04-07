@@ -67,6 +67,7 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
       totalExpGained: 0,
       totalGoldGained: 0,
       villagePreparation: prepNotes,
+      completed: false,
       logs: []
     };
     return created;
@@ -203,6 +204,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
       pet.hero.dungeon.currentExpedition.returnMode = 'portal';
       pet.hero.dungeon.currentExpedition.endedAt = at;
       pet.hero.dungeon.currentExpedition.bossDefeated = room.type === 'boss';
+      pet.hero.dungeon.currentExpedition.completed = true;
     }
     text += ' 最深處出現了傳送門，隨後返回村莊。';
     const returnNotes = runVillageRecovery(pet, at);
@@ -217,6 +219,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
       pet.hero.dungeon.currentExpedition.status = 'failed';
       pet.hero.dungeon.currentExpedition.returnMode = 'defeat';
       pet.hero.dungeon.currentExpedition.endedAt = at;
+      pet.hero.dungeon.currentExpedition.completed = true;
     }
   } else if (outcome === 'escape') {
     pet.hero.dungeon.floor = Math.max(1, floor - 1);
@@ -225,6 +228,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
       pet.hero.dungeon.currentExpedition.status = 'returned';
       pet.hero.dungeon.currentExpedition.returnMode = 'retreat';
       pet.hero.dungeon.currentExpedition.endedAt = at;
+      pet.hero.dungeon.currentExpedition.completed = true;
     }
   }
 
@@ -266,7 +270,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
         ? '這趟探險失利，狼狽地被帶回村莊。'
         : '這趟探險結束，已經順利回到村莊。';
     }
-    if (pet.hero.dungeon.currentExpedition.status === 'returned' || pet.hero.dungeon.currentExpedition.status === 'failed') {
+    if (pet.hero.dungeon.currentExpedition.completed) {
       pet.hero.dungeon.expeditionHistory = [...pet.hero.dungeon.expeditionHistory, pet.hero.dungeon.currentExpedition].slice(-12);
       pet.hero.dungeon.currentExpedition = undefined;
     }
