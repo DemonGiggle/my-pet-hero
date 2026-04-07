@@ -31,6 +31,8 @@ export type AbilityTag =
 export type SkillTarget = 'self' | 'enemy';
 export type SkillEffectKind = 'damage' | 'heal' | 'shield' | 'buff';
 export type DungeonRoomType = 'entrance' | 'battle' | 'elite' | 'treasure' | 'event' | 'rest' | 'shop' | 'boss';
+export type EquipmentSlot = 'weapon' | 'armor' | 'accessory';
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic';
 
 export interface Needs {
   health: number;
@@ -153,6 +155,38 @@ export interface CombatantSnapshot {
   crit: number;
   damageTypeBias: DamageType;
   shield: number;
+}
+
+export interface EquipmentBonuses {
+  maxHealth?: number;
+  attack?: number;
+  magicAttack?: number;
+  defense?: number;
+  magicDefense?: number;
+  accuracy?: number;
+  evasion?: number;
+  crit?: number;
+}
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  slot: EquipmentSlot;
+  rarity: ItemRarity;
+  itemLevel: number;
+  heroClass: HeroClass;
+  bonuses: EquipmentBonuses;
+  source?: string;
+}
+
+export interface EquipmentState {
+  equipped: {
+    weapon?: EquipmentItem;
+    armor?: EquipmentItem;
+    accessory?: EquipmentItem;
+  };
+  inventory: EquipmentItem[];
+  lastEquippedAt?: string;
 }
 
 export interface SkillUseLog {
@@ -316,6 +350,7 @@ export interface HeroProgress {
   statPoints: number;
   gold: number;
   attributes: Attributes;
+  equipment: EquipmentState;
   dungeon: DungeonProgress;
   classProgress: ClassProgress;
   adventureLog: AdventureLog[];

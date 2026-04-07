@@ -11,6 +11,7 @@ import {
   SkillUseLog
 } from './types.js';
 import { clamp, hashToUnit } from './utils.js';
+import { computeEquipmentBonuses } from './gear.js';
 
 export const ENEMIES: EnemyTemplate[] = [
   {
@@ -103,18 +104,19 @@ function chooseEnemy(floor: number, seed: string): EnemyTemplate {
 function buildHeroSnapshot(pet: PetState): CombatantSnapshot {
   const heroClass = CLASSES[pet.hero.classProgress.current];
   const affinity = getClassAffinity(pet.hero.classProgress.current, pet.species);
-  const maxHealth = Math.round(54 + pet.hero.attributes.vitality * 4 + pet.hero.level * 5 + heroClass.healthModifier);
+  const gear = computeEquipmentBonuses(pet);
+  const maxHealth = Math.round(54 + pet.hero.attributes.vitality * 4 + pet.hero.level * 5 + heroClass.healthModifier + gear.maxHealth);
   return {
     name: pet.name,
     maxHealth,
     health: Math.round(maxHealth * (pet.needs.health / 100)),
-    attack: Math.round(pet.hero.attributes.strength * 2.1 + pet.hero.level * 2 + affinity * 3),
-    magicAttack: Math.round(pet.hero.attributes.intelligence * 2.4 + pet.hero.level * 2 + affinity * 3),
-    defense: Math.round(pet.hero.attributes.vitality * 1.6 + pet.hero.level + heroClass.physicalResistance * 14),
-    magicDefense: Math.round(pet.hero.attributes.intelligence * 1.25 + pet.hero.level + heroClass.magicResistance * 14),
-    accuracy: clamp(0.74 + pet.hero.attributes.agility * 0.012 + pet.hero.attributes.luck * 0.004 + heroClass.attackSpeedModifier * 0.1, 0.55, 0.97),
-    evasion: clamp(0.05 + pet.hero.attributes.agility * 0.008 + heroClass.moveSpeedModifier * 0.15, 0.02, 0.35),
-    crit: clamp(0.04 + pet.hero.attributes.luck * 0.006 + heroClass.attackSpeedModifier * 0.04, 0.03, 0.35),
+    attack: Math.round(pet.hero.attributes.strength * 2.1 + pet.hero.level * 2 + affinity * 3 + gear.attack),
+    magicAttack: Math.round(pet.hero.attributes.intelligence * 2.4 + pet.hero.level * 2 + affinity * 3 + gear.magicAttack),
+    defense: Math.round(pet.hero.attributes.vitality * 1.6 + pet.hero.level + heroClass.physicalResistance * 14 + gear.defense),
+    magicDefense: Math.round(pet.hero.attributes.intelligence * 1.25 + pet.hero.level + heroClass.magicResistance * 14 + gear.magicDefense),
+    accuracy: clamp(0.74 + pet.hero.attributes.agility * 0.012 + pet.hero.attributes.luck * 0.004 + heroClass.attackSpeedModifier * 0.1 + gear.accuracy, 0.55, 0.97),
+    evasion: clamp(0.05 + pet.hero.attributes.agility * 0.008 + heroClass.moveSpeedModifier * 0.15 + gear.evasion, 0.02, 0.35),
+    crit: clamp(0.04 + pet.hero.attributes.luck * 0.006 + heroClass.attackSpeedModifier * 0.04 + gear.crit, 0.03, 0.35),
     damageTypeBias: pet.hero.classProgress.current === 'mage' ? 'magic' : 'physical',
     shield: 0
   };

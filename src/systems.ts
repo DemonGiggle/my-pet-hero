@@ -3,6 +3,7 @@ import { CLASSES, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, hashToUnit } from './utils.js';
 import { runCombat } from './combat.js';
 import { advanceDungeonRoom, generateDungeonInstance, getCurrentRoom } from './dungeons.js';
+import { autoEquipLoot, maybeGenerateLoot } from './gear.js';
 
 export function autoRecoverNeeds(pet: PetState, at: string): string[] {
   const notes: string[] = [];
@@ -192,6 +193,13 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   pet.hero.gold += gold;
   const levelNotes = gainExp(pet, exp);
   rewards.push(...levelNotes);
+
+  const loot = maybeGenerateLoot(pet, floor, at, room.type);
+  if (loot) {
+    const lootNote = autoEquipLoot(pet, loot);
+    rewards.push(`掉落：${loot.name}`);
+    rewards.push(lootNote);
+  }
 
   const nextRoom = advanceDungeonRoom(dungeon);
   const completedDungeon = (outcome === 'win' || outcome === 'treasure' || outcome === 'rest') && !nextRoom;

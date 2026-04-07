@@ -9,6 +9,7 @@ import { HeroClass, Species, PetState } from './types.js';
 import { runCombat, ENEMIES } from './combat.js';
 import { SKILLS } from './skills.js';
 import { autoDungeonRun } from './systems.js';
+import { formatEquipmentSummary } from './gear.js';
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -65,6 +66,8 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
     : `目前在迷宮 ${result.pet.hero.dungeon.floor} 層${dungeonInfo}。`;
   lines.push(`狀態：Lv${result.pet.hero.level} ${result.pet.species} ${result.pet.hero.classProgress.current}，${result.moodLabel}，${locationText}`);
   lines.push('最近冒險：');
+
+  lines.push(`裝備：${formatEquipmentSummary(result.pet).join(' / ')}`);
 
   if (result.pet.hero.dungeon.currentExpedition) {
     lines.push(`當前探險：${result.pet.hero.dungeon.currentExpedition.dungeonName}，${result.pet.hero.dungeon.currentExpedition.roomsCleared}/${result.pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
@@ -140,6 +143,8 @@ async function printStatus(id: string): Promise<void> {
     imagePath: rendered.outputPath,
     needs: result.pet.needs,
     attributes: result.pet.hero.attributes,
+    equipment: result.pet.hero.equipment,
+    equipmentSummary: formatEquipmentSummary(result.pet),
     aptitude: result.pet.hero.classProgress.aptitude,
     events: result.events.slice(-5),
     adventures: result.pet.hero.adventureLog.slice(-3)
@@ -166,6 +171,8 @@ async function mutate(id: string, action: 'feed' | 'play' | 'clean'): Promise<vo
     imagePath: rendered.outputPath,
     needs: result.pet.needs,
     attributes: result.pet.hero.attributes,
+    equipment: result.pet.hero.equipment,
+    equipmentSummary: formatEquipmentSummary(result.pet),
     level: result.pet.hero.level,
     exp: result.pet.hero.exp,
     expToNext: result.pet.hero.expToNext
@@ -192,6 +199,8 @@ async function create(): Promise<void> {
     level: pet.hero.level,
     attributes: pet.hero.attributes,
     aptitude: pet.hero.classProgress.aptitude,
+    equipment: pet.hero.equipment,
+    equipmentSummary: formatEquipmentSummary(pet),
     imagePath: rendered.outputPath,
     needs: pet.needs
   }, null, 2));

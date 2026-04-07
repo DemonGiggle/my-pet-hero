@@ -86,7 +86,12 @@ export function simulatePet(pet, nowIso = new Date().toISOString()) {
     pet.lastSimulatedAt = nowIso;
     pet.history = [...pet.history, ...events].slice(-30);
     const mood = moodLabel(pet.needs.mood);
-    const summary = events.length > 0 ? events[events.length - 1].text : `${pet.name}這段時間一邊生活、一邊穩穩成長。`;
+    const latestExpedition = pet.hero.dungeon.expeditionHistory[pet.hero.dungeon.expeditionHistory.length - 1];
+    const summary = latestExpedition?.completed
+        ? `${pet.name} 剛完成一趟從 ${latestExpedition.dungeonName} 歸來的探險。`
+        : events.length > 0
+            ? events[events.length - 1].text
+            : `${pet.name}這段時間一邊生活、一邊穩穩成長。`;
     return {
         pet,
         events,

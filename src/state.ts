@@ -37,6 +37,26 @@ const aptitudeSchema = z.object({
   rogue: z.number(),
   mage: z.number()
 });
+const equipmentBonusesSchema = z.object({
+  maxHealth: z.number().optional(),
+  attack: z.number().optional(),
+  magicAttack: z.number().optional(),
+  defense: z.number().optional(),
+  magicDefense: z.number().optional(),
+  accuracy: z.number().optional(),
+  evasion: z.number().optional(),
+  crit: z.number().optional()
+});
+const equipmentItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slot: z.enum(['weapon', 'armor', 'accessory']),
+  rarity: z.enum(['common', 'uncommon', 'rare', 'epic']),
+  itemLevel: z.number(),
+  heroClass: heroClassSchema,
+  bonuses: equipmentBonusesSchema,
+  source: z.string().optional()
+});
 
 const skillUseSchema = z.object({
   round: z.number(),
@@ -149,6 +169,15 @@ const petStateSchema = z.object({
     statPoints: z.number(),
     gold: z.number(),
     attributes: attributesSchema,
+    equipment: z.object({
+      equipped: z.object({
+        weapon: equipmentItemSchema.optional(),
+        armor: equipmentItemSchema.optional(),
+        accessory: equipmentItemSchema.optional()
+      }).default({}),
+      inventory: z.array(equipmentItemSchema).default([]),
+      lastEquippedAt: z.string().optional()
+    }).default({ equipped: {}, inventory: [] }),
     dungeon: z.object({
       seed: z.number(),
       floor: z.number(),
@@ -297,7 +326,7 @@ export function createPet(params: { id: string; name: string; species: Species; 
   const aptitude = buildAptitude(params.species);
 
   return {
-    version: 6,
+    version: 7,
     id: params.id,
     name: params.name,
     species: params.species,
@@ -322,6 +351,14 @@ export function createPet(params: { id: string; name: string; species: Species; 
       statPoints: 0,
       gold: 0,
       attributes: finalAttributes,
+      equipment: {
+        equipped: {
+          weapon: undefined,
+          armor: undefined,
+          accessory: undefined
+        },
+        inventory: []
+      },
       dungeon: {
         seed: randomSeed(),
         floor: 1,
