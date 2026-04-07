@@ -227,19 +227,19 @@
 目標：建立「村莊 → 地下城 → boss 房傳送門 → 回村」的完整探險週期。
 
 ### Scope
-- [ ] village state / location state
-- [ ] expedition run model
-- [ ] 村莊自動整補流程
-- [ ] 地下城出發與回村邏輯
-- [ ] boss 房傳送門回村
-- [ ] expedition summary / history
-- [ ] status/report 顯示村莊與探險狀態
+- [x] village state / location state
+- [x] expedition run model
+- [x] 村莊自動整補流程
+- [x] 地下城出發與回村邏輯
+- [x] boss 房傳送門回村
+- [x] expedition summary / history
+- [x] status/report 顯示村莊與探險狀態
 
 ### Exit Criteria
-- 角色有明確 location: village / dungeon
-- 每次探險都有完整開始與結束
-- 打完 boss 後可透過 portal 回村
-- 能查看完整 expedition summary
+- [x] 角色有明確 location: village / dungeon
+- [x] 每次探險都有完整開始與結束
+- [x] 打完 boss 後可透過 portal 回村
+- [x] 能查看完整 expedition summary
 
 ---
 

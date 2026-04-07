@@ -28,21 +28,25 @@ function clonePet<T extends PetState>(pet: T): T {
 }
 
 function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expeditionHistory'][number]): string[] {
+  const title = expedition.completed
+    ? `【探險結算】${expedition.dungeonName} / 第 ${expedition.floor} 層`
+    : `【進行中探險】${expedition.dungeonName} / 第 ${expedition.floor} 層`;
   const lines = [
-    `探險總結：${expedition.dungeonName} / Floor ${expedition.floor}`,
-    `- 結果：${expedition.status}${expedition.returnMode ? ` / ${expedition.returnMode}` : ''}`,
-    `- 進度：${expedition.roomsCleared}/${expedition.totalRooms} 房`,
-    `- 收益：EXP +${expedition.totalExpGained} / Gold +${expedition.totalGoldGained}`,
-    `- Boss：${expedition.bossDefeated ? '已擊破' : '未擊破'}`,
-    `- 完成：${expedition.completed ? '已完整結束' : '尚未結束'}`
+    title,
+    `結果：${expedition.status}${expedition.returnMode ? ` / ${expedition.returnMode}` : ''}`,
+    `進度：${expedition.roomsCleared}/${expedition.totalRooms} 房`,
+    `收益：EXP +${expedition.totalExpGained} / Gold +${expedition.totalGoldGained}`,
+    `Boss：${expedition.bossDefeated ? '已擊破' : '未擊破'}`,
+    `完成度：${expedition.completed ? '本次探險已完整結束' : '仍在探索中'}`
   ];
-  if (expedition.villagePreparation.length > 0) lines.push(`- 村莊整備：${expedition.villagePreparation.join('、')}`);
-  if (expedition.returnSummary) lines.push(`- 回村：${expedition.returnSummary}`);
+  if (expedition.villagePreparation.length > 0) lines.push(`村莊整備：${expedition.villagePreparation.join('、')}`);
+  if (expedition.returnSummary) lines.push(`回村整理：${expedition.returnSummary}`);
   if (expedition.logs.length > 0) {
-    lines.push('- 過程：');
+    lines.push('本次歷程：');
     for (const item of expedition.logs) {
-      lines.push(`  • ${item.roomName ?? item.roomType ?? 'unknown'} / ${item.outcome} / EXP +${item.expGained} / Gold +${item.goldGained}`);
-      lines.push(`    ${item.text}`);
+      const roomLabel = item.roomName ?? item.roomType ?? 'unknown';
+      lines.push(`• ${roomLabel}，${item.outcome}，EXP +${item.expGained}，Gold +${item.goldGained}`);
+      lines.push(`  ${item.text}`);
     }
   }
   return lines;
@@ -64,6 +68,7 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 
   if (result.pet.hero.dungeon.currentExpedition) {
     lines.push(`當前探險：${result.pet.hero.dungeon.currentExpedition.dungeonName}，${result.pet.hero.dungeon.currentExpedition.roomsCleared}/${result.pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
+    lines.push(...formatExpeditionSummary(result.pet.hero.dungeon.currentExpedition as PetState['hero']['dungeon']['expeditionHistory'][number]).map(line => `  ${line}`));
   } else if (result.pet.hero.dungeon.expeditionHistory.length > 0) {
     const latest = result.pet.hero.dungeon.expeditionHistory[result.pet.hero.dungeon.expeditionHistory.length - 1];
     lines.push(`上一趟探險：${latest.dungeonName}，結果 ${latest.status}${latest.returnMode ? ` / ${latest.returnMode}` : ''}。`);
