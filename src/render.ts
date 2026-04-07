@@ -71,7 +71,7 @@ function basePattern(species: PetState['species'], mood: number, energy: number)
 
 export async function renderStatusCard(params: { pet: PetState; summary: string; outputDir?: string }): Promise<RenderResult> {
   const { pet, summary } = params;
-  const outputDir = params.outputDir ?? path.resolve('/home/gigo/.openclaw/projects/my-pet-hero/renders');
+  const outputDir = params.outputDir ?? path.resolve('/home/gigo/.openclaw/media/my-pet-hero');
   await mkdir(outputDir, { recursive: true });
   const species = SPECIES[pet.species];
   const png = new PNG({ width: WIDTH, height: HEIGHT });
