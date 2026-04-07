@@ -46,6 +46,9 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
   } else if (result.pet.hero.dungeon.expeditionHistory.length > 0) {
     const latest = result.pet.hero.dungeon.expeditionHistory[result.pet.hero.dungeon.expeditionHistory.length - 1];
     lines.push(`上一趟探險：${latest.dungeonName}，結果 ${latest.status}${latest.returnMode ? ` / ${latest.returnMode}` : ''}。`);
+    lines.push(`  完整結算：${latest.roomsCleared}/${latest.totalRooms} 房，EXP +${latest.totalExpGained}，Gold +${latest.totalGoldGained}，Boss ${latest.bossDefeated ? '已擊破' : '未擊破'}。`);
+    if (latest.villagePreparation.length > 0) lines.push(`  村莊整備：${latest.villagePreparation.join('、')}`);
+    if (latest.returnSummary) lines.push(`  回村：${latest.returnSummary}`);
   }
 
   for (const item of adventures) {

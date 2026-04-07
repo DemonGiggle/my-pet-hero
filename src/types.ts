@@ -273,6 +273,10 @@ export interface ExpeditionSummary {
   roomsCleared: number;
   totalRooms: number;
   bossDefeated: boolean;
+  totalExpGained: number;
+  totalGoldGained: number;
+  villagePreparation: string[];
+  returnSummary?: string;
   logs: AdventureLog[];
 }
 

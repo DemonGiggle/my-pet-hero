@@ -167,6 +167,10 @@ const petStateSchema = z.object({
         roomsCleared: z.number(),
         totalRooms: z.number(),
         bossDefeated: z.boolean(),
+        totalExpGained: z.number().default(0),
+        totalGoldGained: z.number().default(0),
+        villagePreparation: z.array(z.string()).default([]),
+        returnSummary: z.string().optional(),
         logs: z.array(z.any())
       }).optional(),
       expeditionHistory: z.array(z.object({
@@ -180,6 +184,10 @@ const petStateSchema = z.object({
         roomsCleared: z.number(),
         totalRooms: z.number(),
         bossDefeated: z.boolean(),
+        totalExpGained: z.number().default(0),
+        totalGoldGained: z.number().default(0),
+        villagePreparation: z.array(z.string()).default([]),
+        returnSummary: z.string().optional(),
         logs: z.array(z.any())
       })).default([]),
       village: z.object({
