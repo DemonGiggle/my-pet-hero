@@ -1,6 +1,7 @@
 import { PetEvent, PetState, SimulationResult } from './types.js';
 import { SPECIES } from './species.js';
-import { bucketHours, clamp, hashToUnit, pickOne } from './utils.js';
+import { loadGameConfig } from './config.js';
+import { bucketMinutes, clamp, hashToUnit, pickOne } from './utils.js';
 import { autoDungeonRun, autoRecoverNeeds } from './systems.js';
 import { advanceVillageActivity, ensureVillageActivity } from './village.js';
 
@@ -62,7 +63,8 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
   );
 
   const events: PetEvent[] = [];
-  for (const bucket of bucketHours(pet.lastSimulatedAt, nowIso, 2)) {
+  const { config } = loadGameConfig();
+  for (const bucket of bucketMinutes(pet.lastSimulatedAt, nowIso, config.cadence.simulationBucketMinutes)) {
     const selfCare = autoRecoverNeeds(pet, bucket);
     if (selfCare.length > 0) {
       events.push({ at: bucket, type: 'self-care', delta: {}, text: selfCare.join('') });

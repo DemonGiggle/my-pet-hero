@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { CURRENT_SAVE_VERSION, DEFAULT_DATA_DIR, createPet, listPetSaves, loadPet, petFilePath, savePet } from './state.js';
+import { loadGameConfig } from './config.js';
 import { simulatePet } from './simulate.js';
 import { renderStatusCard } from './render.js';
 import { feedPet, playWithPet, cleanPet } from './actions.js';
@@ -316,11 +317,20 @@ async function printSaves(): Promise<void> {
 async function printDoctor(idArg?: string): Promise<void> {
   const saves = await listPetSaves();
   const requestedId = idArg ?? (saves.length === 1 ? saves[0].id : undefined);
+  const { config, configPath } = loadGameConfig();
   const payload: Record<string, unknown> = {
     currentSaveVersion: CURRENT_SAVE_VERSION,
     dataDir: DEFAULT_DATA_DIR,
     saveCount: saves.length,
     defaultHeroId: saves.length === 1 ? saves[0].id : null,
+    runtimeConfig: {
+      configPath: configPath ?? null,
+      cadence: config.cadence,
+      envOverrides: {
+        simulationBucketMinutes: process.env.MY_PET_HERO_SIM_BUCKET_MINUTES ?? null,
+        villageActivityBucketMinutes: process.env.MY_PET_HERO_VILLAGE_BUCKET_MINUTES ?? null
+      }
+    },
     migrationPolicy: {
       supportedFrom: [2, 3, 4, 5, 6, 7],
       target: CURRENT_SAVE_VERSION,
@@ -476,7 +486,7 @@ async function sellInventoryItem(idArg: string | undefined, itemId: string): Pro
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]\n\nconfig:\n  my-pet-hero.config.json -> { \"cadence\": { \"simulationBucketMinutes\": 5, \"villageActivityBucketMinutes\": 5 } }\n  env overrides -> MY_PET_HERO_CONFIG, MY_PET_HERO_SIM_BUCKET_MINUTES, MY_PET_HERO_VILLAGE_BUCKET_MINUTES`);
     return;
   }
 

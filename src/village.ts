@@ -1,10 +1,14 @@
 import { CLASSES } from './classes.js';
 import { SPECIES } from './species.js';
+import { loadGameConfig } from './config.js';
 import { PetState, NeedKey, VillageActivityRecord } from './types.js';
 import { clamp, hashToUnit } from './utils.js';
 
 const RECENT_ACTIVITY_LIMIT = 8;
-const VILLAGE_ACTIVITY_WINDOW_MS = 60 * 60 * 1000;
+
+function villageActivityWindowMs(): number {
+  return loadGameConfig().config.cadence.villageActivityBucketMinutes * 60_000;
+}
 
 type VillageActivityTemplate = {
   key: string;
@@ -70,7 +74,8 @@ function needTemplates(pet: PetState): VillageActivityTemplate[] {
 
 function villageActivityWindowStart(at: string): string {
   const timestamp = new Date(at).getTime();
-  return new Date(Math.floor(timestamp / VILLAGE_ACTIVITY_WINDOW_MS) * VILLAGE_ACTIVITY_WINDOW_MS).toISOString();
+  const windowMs = villageActivityWindowMs();
+  return new Date(Math.floor(timestamp / windowMs) * windowMs).toISOString();
 }
 
 function pickVillageTemplate(pet: PetState, at: string): VillageActivityTemplate {
@@ -109,7 +114,7 @@ function commitVillageActivityEffects(pet: PetState, record: VillageActivityReco
   pet.needs.energy = clamp(pet.needs.energy + (record.effects.energy ?? 0));
   pet.needs.hygiene = clamp(pet.needs.hygiene + (record.effects.hygiene ?? 0));
 
-  const endedAt = new Date(new Date(record.startedAt).getTime() + VILLAGE_ACTIVITY_WINDOW_MS).toISOString();
+  const endedAt = new Date(new Date(record.startedAt).getTime() + villageActivityWindowMs()).toISOString();
   const completed = { ...record, endedAt };
   pet.hero.dungeon.village.recentActivities = [
     ...pet.hero.dungeon.village.recentActivities,
@@ -144,7 +149,7 @@ export function advanceVillageActivity(pet: PetState, at: string): VillageActivi
 
   while (current.startedAt < targetWindowStart) {
     completed.push(commitVillageActivityEffects(pet, current));
-    current = buildVillageActivityRecord(pet, new Date(new Date(current.startedAt).getTime() + VILLAGE_ACTIVITY_WINDOW_MS).toISOString());
+    current = buildVillageActivityRecord(pet, new Date(new Date(current.startedAt).getTime() + villageActivityWindowMs()).toISOString());
   }
 
   village.currentActivity = current.startedAt === targetWindowStart ? current : buildVillageActivityRecord(pet, at);

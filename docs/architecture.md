@@ -9,7 +9,7 @@ My Pet Hero 採用 query-time simulation：
 1. 載入上次儲存狀態
 2. 計算距離上次模擬經過多久
 3. 根據種族 decay、needs、個性與事件規則推進角色狀態
-4. 以 2 小時 bucket 觸發 self-care、生活事件與自動探險判定
+4. 以可設定的時間 bucket 觸發 self-care、生活事件與自動探險判定（目前預設 5 分鐘）
 5. 視情況建立 / 推進迷宮 instance、戰鬥、掉寶、回村整補
 6. 寫回 state
 7. 需要時輸出 PNG 狀態圖與 JSON / report
@@ -40,9 +40,15 @@ My Pet Hero 採用 query-time simulation：
 ### `src/simulate.ts`
 - 推進經過時間
 - 更新 needs
-- 將經過時間切成 2 小時 buckets
+- 將經過時間切成可設定的 simulation buckets（預設 5 分鐘）
 - 每個 bucket 依序觸發 self-care、autoDungeonRun、生活事件
 - 組合 summary / mood / stage
+
+### `src/config.ts`
+- 讀取 runtime 設定
+- 預設 cadence 為 `simulationBucketMinutes=5`、`villageActivityBucketMinutes=5`
+- 支援 `my-pet-hero.config.json`
+- 支援 env override（`MY_PET_HERO_CONFIG`、`MY_PET_HERO_SIM_BUCKET_MINUTES`、`MY_PET_HERO_VILLAGE_BUCKET_MINUTES`）
 
 ### `src/systems.ts`
 - 核心系統邏輯
@@ -195,6 +201,7 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - `npm run build` 可通過
 - 新建角色可正常 `status`
 - `inventory` / `combat-preview` / `dungeon-preview` CLI 存在且可輸出當前 schema 資料
+- `doctor` 可輸出實際生效的 cadence config，方便驗證 runtime bucket 設定
 
 另外要注意：目前 migration 支援 v2~v7。比 v2 更舊，或未來比 v8 更新的存檔，會明確拒絕載入。
 

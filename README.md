@@ -127,6 +127,27 @@ npm run dev -- doctor --id asaki
 - `skills`
 - `enemies`
 
+### Cadence 設定
+
+可參考 repo 內的 `my-pet-hero.config.example.json`，在專案工作目錄放 `my-pet-hero.config.json`：
+
+```json
+{
+  "cadence": {
+    "simulationBucketMinutes": 5,
+    "villageActivityBucketMinutes": 5
+  }
+}
+```
+
+也可用環境變數覆蓋：
+
+- `MY_PET_HERO_CONFIG` 指定設定檔路徑
+- `MY_PET_HERO_SIM_BUCKET_MINUTES` 覆蓋 query-time simulation bucket
+- `MY_PET_HERO_VILLAGE_BUCKET_MINUTES` 覆蓋 village activity bucket
+
+`doctor` 會把目前實際生效的 cadence 印出來，方便確認。
+
 ## 目前行為重點
 
 ### 1. status 會先模擬經過時間
@@ -136,6 +157,8 @@ npm run dev -- doctor --id asaki
 ### 2. 探險不是背景常駐，而是查詢時觸發推進
 
 系統會依 needs、個性與時間 bucket 決定是否自動出發探險。角色位置會在 `village` 與 `dungeon` 之間切換。
+
+現在 query-time bucket 已做成可設定 cadence，預設是 `5` 分鐘一格，讓推進節奏比早期的 2 小時 / 1 小時版本快很多。預設會同步套用到「自動照護 / 事件 / 探險判定」與 village activity；如果想拆開，也可以分別設定。
 
 當角色沒有出門時，也不會只是空白待機。村莊會記錄目前 / 最近做過的 village activity，像是旅店補眠、整理裝備、跑腿、或職業風格行程。這些活動會對 needs 與「出發準備度」產生溫和但有感的影響。
 
@@ -184,6 +207,7 @@ npm run dev -- doctor --id asaki
 - `npm run build` 可通過
 - `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` CLI 入口存在
 - 新版存檔可正確輸出 expedition / equipment 相關欄位
+- cadence 設定可由 `my-pet-hero.config.json` 或環境變數控制，`doctor` 可看到生效值
 
 ## 資料與輸出位置
 

@@ -1,0 +1,6 @@
+{
+  "cadence": {
+    "simulationBucketMinutes": 5,
+    "villageActivityBucketMinutes": 5
+  }
+}

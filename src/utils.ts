@@ -13,11 +13,11 @@ export function hashToUnit(input: string): number {
   return parseInt(hex, 16) / 0xffffffff;
 }
 
-export function bucketHours(startIso: string, endIso: string, bucketSizeHours = 1): string[] {
+export function bucketMinutes(startIso: string, endIso: string, bucketSizeMinutes = 60): string[] {
   const out: string[] = [];
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
-  const step = bucketSizeHours * 3600_000;
+  const step = bucketSizeMinutes * 60_000;
   for (let t = start + step; t <= end; t += step) out.push(new Date(t).toISOString());
   return out;
 }

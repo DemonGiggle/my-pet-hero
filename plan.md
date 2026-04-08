@@ -118,6 +118,7 @@
 - [x] boss 房傳送門回村
 - [x] expedition summary / history
 - [x] status/report 顯示村莊與探險狀態
+- [x] query-time cadence 改成可設定，預設 5 分鐘 bucket，並同步套到 village activity
 
 ### Exit Criteria
 - [x] 角色有明確 location: village / dungeon
