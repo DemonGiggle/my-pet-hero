@@ -142,12 +142,13 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 ### `status`
 包含：
 - location / village / currentExpedition / expeditionHistory
+- village.currentActivity / village.recentActivities / readiness
 - currentDungeon / currentRoom
 - level / exp / gold / attributes / needs
 - equipment / equipmentSummary
 - `headline` / `quickStatus`
 - recent events / adventures
-- `--report` 時額外附加文字摘要
+- `--report` 時額外附加文字摘要（含村莊活動敘述）
 
 ### `saves`
 包含：

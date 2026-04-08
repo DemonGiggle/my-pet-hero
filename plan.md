@@ -255,7 +255,7 @@
 
 先記著，但現在別分心：
 
-- [ ] town / settlement 系統深化
+- [~] town / settlement 系統深化（已補上 village activity 層，完整城鎮系統仍未展開）
 - [ ] crafting / alchemy 深化
 - [ ] summon / companion system
 - [ ] portal / fast travel 擴充

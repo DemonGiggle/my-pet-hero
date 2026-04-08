@@ -8,7 +8,7 @@ import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
 
-export const CURRENT_SAVE_VERSION = 8;
+export const CURRENT_SAVE_VERSION = 9;
 
 const needsSchema = z.object({
   health: z.number(),
@@ -253,11 +253,32 @@ const petStateSchema = z.object({
           water: z.number().default(3),
           herbs: z.number().default(1)
         }),
-        lastVisitedAt: z.string()
+        lastVisitedAt: z.string(),
+        currentActivity: z.object({
+          key: z.string(),
+          label: z.string(),
+          summary: z.string(),
+          detail: z.string(),
+          startedAt: z.string(),
+          endedAt: z.string().optional(),
+          effects: needsSchema.partial().extend({ readiness: z.number().optional() }),
+          tags: z.array(z.string()).default([])
+        }).optional(),
+        recentActivities: z.array(z.object({
+          key: z.string(),
+          label: z.string(),
+          summary: z.string(),
+          detail: z.string(),
+          startedAt: z.string(),
+          endedAt: z.string().optional(),
+          effects: needsSchema.partial().extend({ readiness: z.number().optional() }),
+          tags: z.array(z.string()).default([])
+        })).default([])
       }).default({
         name: '晨霧村',
         supplies: { food: 3, water: 3, herbs: 1 },
-        lastVisitedAt: new Date().toISOString()
+        lastVisitedAt: new Date().toISOString(),
+        recentActivities: []
       })
     }),
     classProgress: z.object({
@@ -567,6 +588,41 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
       continue;
     }
 
+    if (currentVersion === 8) {
+      const now = typeof migrated.updatedAt === 'string'
+        ? migrated.updatedAt
+        : (typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString());
+      const hero = isRecord(migrated.hero) ? migrated.hero : {};
+      const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
+      const village = isRecord(dungeon.village) ? dungeon.village : {};
+      const normalizeVillageActivity = (activity: unknown) => isRecord(activity)
+        ? {
+            ...activity,
+            key: typeof activity.key === 'string' ? activity.key : 'village-idle',
+            label: typeof activity.label === 'string' ? activity.label : '在村裡待著',
+            summary: typeof activity.summary === 'string' ? activity.summary : '在村裡待著',
+            detail: typeof activity.detail === 'string' ? activity.detail : '在村裡慢慢整理狀態。',
+            startedAt: typeof activity.startedAt === 'string' ? activity.startedAt : now,
+            endedAt: typeof activity.endedAt === 'string' ? activity.endedAt : undefined,
+            effects: isRecord(activity.effects) ? activity.effects : {},
+            tags: Array.isArray(activity.tags) ? activity.tags : []
+          }
+        : activity;
+      dungeon.village = {
+        ...village,
+        name: typeof village.name === 'string' ? village.name : '晨霧村',
+        supplies: isRecord(village.supplies) ? village.supplies : { food: 3, water: 3, herbs: 1 },
+        lastVisitedAt: typeof village.lastVisitedAt === 'string' ? village.lastVisitedAt : now,
+        currentActivity: normalizeVillageActivity(village.currentActivity),
+        recentActivities: Array.isArray(village.recentActivities) ? village.recentActivities.map(normalizeVillageActivity) : []
+      };
+      hero.dungeon = dungeon;
+      migrated.hero = hero;
+      migrated.version = 9;
+      changed = true;
+      continue;
+    }
+
     throw new Error(`Unsupported migration path from version ${currentVersion}.`);
   }
 
@@ -767,7 +823,8 @@ export function createPet(params: { id: string; name: string; species: Species; 
         village: {
           name: '晨霧村',
           supplies: { food: 3, water: 3, herbs: 1 },
-          lastVisitedAt: now
+          lastVisitedAt: now,
+          recentActivities: []
         }
       },
       classProgress: {

@@ -137,6 +137,8 @@ npm run dev -- doctor --id asaki
 
 系統會依 needs、個性與時間 bucket 決定是否自動出發探險。角色位置會在 `village` 與 `dungeon` 之間切換。
 
+當角色沒有出門時，也不會只是空白待機。村莊會記錄目前 / 最近做過的 village activity，像是旅店補眠、整理裝備、跑腿、或職業風格行程。這些活動會對 needs 與「出發準備度」產生溫和但有感的影響。
+
 ### 3. 有完整 expedition 狀態
 
 `status` payload 目前會包含：
@@ -148,6 +150,8 @@ npm run dev -- doctor --id asaki
 - `expeditionHistory`
 - `equipmentSummary`
 - `report`（加 `--report` 時）
+- `readiness`
+- `village.currentActivity` / `village.recentActivities`
 
 ### 4. 掉寶與裝備有實際效果
 
@@ -165,6 +169,7 @@ npm run dev -- doctor --id asaki
 
 - 角色近況 headline
 - 目前狀態重點（例如疲勞、飢渴、低血量）
+- 村裡現在在做什麼 / 最近村莊行程
 - 目前裝備摘要
 - 正在進行中的探險，或上一趟探險結算
 - 最近幾筆 adventure log

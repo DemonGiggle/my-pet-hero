@@ -11,6 +11,7 @@ import { SKILLS } from './skills.js';
 import { autoDungeonRun } from './systems.js';
 import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
 import { renderDungeonMinimap } from './dungeons.js';
+import { villageReadinessLabel, villageReadinessScore } from './village.js';
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -41,23 +42,31 @@ function formatNeedSummary(pet: PetState): string {
 
 function formatHeadline(result: ReturnType<typeof simulatePet>): string {
   const pet = result.pet;
+  const villageActivity = pet.hero.dungeon.village.currentActivity;
+  const readiness = villageReadinessLabel(villageReadinessScore(pet));
   const location = pet.hero.dungeon.location === 'village'
-    ? `現在在${pet.hero.dungeon.village.name}`
+    ? `現在在${pet.hero.dungeon.village.name}${villageActivity ? `，正忙著${villageActivity.summary}` : ''}`
     : `正在 ${pet.hero.dungeon.currentDungeon?.name ?? `第 ${pet.hero.dungeon.floor} 層迷宮`} 探索`;
   const expedition = pet.hero.dungeon.currentExpedition
     ? `，本趟已推進 ${pet.hero.dungeon.currentExpedition.roomsCleared}/${pet.hero.dungeon.currentExpedition.totalRooms} 房`
-    : '';
+    : pet.hero.dungeon.location === 'village'
+      ? `，出發準備度${readiness}`
+      : '';
   return `${pet.name}是個 Lv${pet.hero.level} ${pet.species} ${pet.hero.classProgress.current}，心情${result.moodLabel}，${location}${expedition}。`;
 }
 
 function formatCardSummary(result: ReturnType<typeof simulatePet>): string {
   const pet = result.pet;
-  const location = pet.hero.dungeon.location === 'village' ? '在村莊待命' : '迷宮探索中';
+  const readiness = villageReadinessLabel(villageReadinessScore(pet));
+  const villageActivity = pet.hero.dungeon.village.currentActivity;
+  const location = pet.hero.dungeon.location === 'village'
+    ? villageActivity ? `村裡忙著${villageActivity.label}` : '在村莊待命'
+    : '迷宮探索中';
   const urgency = pet.needs.health < 45 || pet.needs.energy < 35 || pet.needs.hunger > 70 || pet.needs.thirst > 70
     ? '先照顧狀態'
     : pet.hero.dungeon.currentExpedition
       ? '探險順利中'
-      : '狀態穩定';
+      : `準備度 ${readiness}`;
   return `${location} ${urgency}`;
 }
 
@@ -90,9 +99,14 @@ function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expedi
 function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[] {
   const pet = result.pet;
   const adventures = pet.hero.adventureLog.slice(-3).reverse();
+  const readinessScore = villageReadinessScore(pet);
+  const readinessLabel = villageReadinessLabel(readinessScore);
+  const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
+  const recentVillageActivities = pet.hero.dungeon.village.recentActivities.slice(-3).reverse();
   const lines: string[] = [
     `【近況】${formatHeadline(result)}`,
     `【身體狀態】${formatNeedSummary(pet)}`,
+    `【村莊節奏】出發準備度 ${readinessScore}/100，${readinessLabel}${currentVillageActivity ? `，目前在忙「${currentVillageActivity.label}」` : ''}`,
     `【裝備】${formatEquipmentSummary(pet).join(' / ')}`
   ];
 
@@ -100,6 +114,20 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
     lines.push(`【迷宮地圖】${renderDungeonMinimap(pet.hero.dungeon.currentDungeon)}`);
     if (pet.hero.dungeon.currentDungeon.modifiers.length > 0) {
       lines.push(`【本層異常】${pet.hero.dungeon.currentDungeon.modifiers.map(modifier => `${modifier.label}(${modifier.description})`).join(' / ')}`);
+    }
+  }
+
+  if (pet.hero.dungeon.location === 'village' && currentVillageActivity) {
+    lines.push(`【村裡在做什麼】${currentVillageActivity.detail}`);
+    if (recentVillageActivities.length > 1) {
+      lines.push('【最近村莊行程】');
+      for (const activity of recentVillageActivities) {
+        const effects = Object.entries(activity.effects)
+          .filter(([, value]) => typeof value === 'number' && value !== 0)
+          .map(([key, value]) => `${key} ${value! > 0 ? '+' : ''}${value}`)
+          .join(' / ');
+        lines.push(`- ${activity.label}，${activity.summary}${effects ? ` (${effects})` : ''}`);
+      }
     }
   }
 
@@ -158,6 +186,10 @@ async function printStatus(idArg?: string): Promise<void> {
   const payload: Record<string, unknown> = {
     location: result.pet.hero.dungeon.location,
     village: result.pet.hero.dungeon.village,
+    readiness: {
+      score: villageReadinessScore(result.pet),
+      label: villageReadinessLabel(villageReadinessScore(result.pet))
+    },
     currentExpedition: result.pet.hero.dungeon.currentExpedition ?? null,
     expeditionHistory: result.pet.hero.dungeon.expeditionHistory.slice(-3),
     id: result.pet.id,
@@ -189,7 +221,7 @@ async function printStatus(idArg?: string): Promise<void> {
       : null,
     summary: result.summary,
     headline: formatHeadline(result),
-    quickStatus: formatNeedSummary(result.pet),
+    quickStatus: `${formatNeedSummary(result.pet)}；準備度 ${villageReadinessLabel(villageReadinessScore(result.pet))}`,
     mood: result.moodLabel,
     stage: result.stageLabel,
     imagePath: rendered.outputPath,

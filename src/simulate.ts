@@ -2,6 +2,7 @@ import { PetEvent, PetState, SimulationResult } from './types.js';
 import { SPECIES } from './species.js';
 import { bucketHours, clamp, hashToUnit, pickOne } from './utils.js';
 import { autoDungeonRun, autoRecoverNeeds } from './systems.js';
+import { applyVillageActivity } from './village.js';
 
 function moodLabel(mood: number): string {
   if (mood >= 85) return '雀躍';
@@ -70,6 +71,9 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
     const adventure = autoDungeonRun(pet, bucket);
     if (adventure) {
       events.push({ at: bucket, type: 'adventure', delta: {}, text: adventure.text });
+    } else if (pet.hero.dungeon.location === 'village') {
+      const activity = applyVillageActivity(pet, bucket);
+      events.push({ at: bucket, type: 'village-activity', delta: activity.effects, text: activity.detail });
     }
 
     const unit = hashToUnit(`${pet.seed}:${bucket}`);
@@ -93,11 +97,14 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
 
   const mood = moodLabel(pet.needs.mood);
   const latestExpedition = pet.hero.dungeon.expeditionHistory[pet.hero.dungeon.expeditionHistory.length - 1];
+  const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
   const summary = latestExpedition?.completed
     ? `${pet.name} 剛完成一趟從 ${latestExpedition.dungeonName} 歸來的探險。`
-    : events.length > 0
-      ? events[events.length - 1].text
-      : `${pet.name}這段時間一邊生活、一邊穩穩成長。`;
+    : pet.hero.dungeon.location === 'village' && currentVillageActivity
+      ? `${pet.name} 最近在村裡忙著${currentVillageActivity.summary}。`
+      : events.length > 0
+        ? events[events.length - 1].text
+        : `${pet.name}這段時間一邊生活、一邊穩穩成長。`;
   return {
     pet,
     events,

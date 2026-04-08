@@ -357,6 +357,17 @@ export interface ExpeditionSummary {
   logs: AdventureLog[];
 }
 
+export interface VillageActivityRecord {
+  key: string;
+  label: string;
+  summary: string;
+  detail: string;
+  startedAt: string;
+  endedAt?: string;
+  effects: Partial<Record<NeedKey, number>> & { readiness?: number };
+  tags: string[];
+}
+
 export interface VillageState {
   name: string;
   supplies: {
@@ -365,6 +376,8 @@ export interface VillageState {
     herbs: number;
   };
   lastVisitedAt: string;
+  currentActivity?: VillageActivityRecord;
+  recentActivities: VillageActivityRecord[];
 }
 
 export interface DungeonProgress {

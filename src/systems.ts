@@ -55,6 +55,7 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
     const created = generateDungeonInstance({ pet, floor, at });
     pet.hero.dungeon.currentDungeon = created;
     pet.hero.dungeon.location = 'dungeon';
+    pet.hero.dungeon.village.currentActivity = undefined;
     const prepNotes = runVillageRecovery(pet, at);
     pet.hero.dungeon.currentExpedition = {
       id: `exp-${floor}-${Date.parse(at)}`,
