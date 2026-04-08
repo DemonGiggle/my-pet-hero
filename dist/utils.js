@@ -9,11 +9,11 @@ export function hashToUnit(input) {
     const hex = crypto.createHash('sha256').update(input).digest('hex').slice(0, 8);
     return parseInt(hex, 16) / 0xffffffff;
 }
-export function bucketHours(startIso, endIso, bucketSizeHours = 1) {
+export function bucketMinutes(startIso, endIso, bucketSizeMinutes = 60) {
     const out = [];
     const start = new Date(startIso).getTime();
     const end = new Date(endIso).getTime();
-    const step = bucketSizeHours * 3600_000;
+    const step = bucketSizeMinutes * 60_000;
     for (let t = start + step; t <= end; t += step)
         out.push(new Date(t).toISOString());
     return out;

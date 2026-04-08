@@ -15,6 +15,7 @@
 - 狀態 PNG 輸出
 - `status --report` 人類可讀近況摘要
 - 單一角色時可省略 `--id`
+- `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
 - `saves` / `doctor` 管理與 migration 診斷指令
 
 ## 安裝
@@ -99,6 +100,36 @@ npm run dev -- play --id asaki
 npm run dev -- clean --id asaki
 ```
 
+### OpenClaw / 聊天指令模式
+
+如果你想讓 OpenClaw 或其他 chat interface 用短指令操作，而不是每次都拼完整 CLI，可改走 `chat` 入口：
+
+```bash
+npm run dev -- chat --input "/pet status"
+npm run dev -- chat --input "/pet report asaki"
+npm run dev -- chat --input "/pet inventory"
+npm run dev -- chat --input "/pet heroes"
+npm run dev -- chat --input "/pet use asaki"
+```
+
+支援的聊天指令：
+
+- `/pet status [heroId]`
+- `/pet report [heroId]`
+- `/pet inventory [heroId]`
+- `/pet feed [heroId]`
+- `/pet play [heroId]`
+- `/pet clean [heroId]`
+- `/pet heroes`
+- `/pet use HERO_ID`
+- `/pet help`
+
+設計重點：
+
+- 聊天指令仍然輸出 JSON，方便 OpenClaw agent 直接取 `message`、`headline`、`report`、`inventoryLines`
+- `/pet use HERO_ID` 會把預設角色存在 runtime state directory 的 `chat-preferences.json`，不寫進 repo，也不需要硬編本機路徑
+- 若已設定預設角色，之後 `status` / `inventory` / `feed` 這些一般 CLI 入口也可直接沿用，不必每次補 `--id`
+
 ### 查資料表 / 管理資訊
 
 ```bash
@@ -123,6 +154,7 @@ npm run dev -- doctor --id asaki
 - `feed [--id PET_ID]`
 - `play [--id PET_ID]`
 - `clean [--id PET_ID]`
+- `chat --input "/pet ..."`
 - `classes`
 - `skills`
 - `enemies`
@@ -205,7 +237,8 @@ npm run dev -- doctor --id asaki
 目前已確認：
 
 - `npm run build` 可通過
-- `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` CLI 入口存在
+- `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` / `chat` CLI 入口存在
+- `npm run validate:chat` 可驗證 `/pet status`、`/pet report`、`/pet inventory`、`/pet use`、`/pet heroes`、`/pet feed`
 - 新版存檔可正確輸出 expedition / equipment 相關欄位
 - cadence 設定可由 `my-pet-hero.config.json` 或環境變數控制，`doctor` 可看到生效值
 
@@ -216,7 +249,7 @@ npm run dev -- doctor --id asaki
 
 ## 目前限制
 
-- v2~v6 舊存檔會在載入時自動 migration 到 v7，並先備份原始 JSON
+- v2~v8 舊存檔會在載入時自動 migration 到 v9，並先備份原始 JSON
 - `doctor` 目前提供的是 migration 策略與存檔概況，不是完整 repair tool
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - bitmap minimap / status card integration 還沒做，刻意先不硬塞進這輪
@@ -226,5 +259,6 @@ npm run dev -- doctor --id asaki
 ## 文件
 
 - 技術架構：`docs/architecture.md`
+- OpenClaw / chat routing：`docs/openclaw-chat.md`
 - 遊戲設計：`docs/game-design.md`
 - milestone 狀態：`plan.md`

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { CURRENT_SAVE_VERSION, DEFAULT_DATA_DIR, createPet, listPetSaves, loadPet, petFilePath, savePet } from './state.js';
+import { loadGameConfig } from './config.js';
 import { simulatePet } from './simulate.js';
 import { renderStatusCard } from './render.js';
 import { feedPet, playWithPet, cleanPet } from './actions.js';
@@ -11,6 +12,7 @@ import { autoDungeonRun } from './systems.js';
 import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
 import { renderDungeonMinimap } from './dungeons.js';
 import { villageReadinessLabel, villageReadinessScore } from './village.js';
+import { formatChatHelp, loadChatPreferences, parseChatCommand, saveChatPreferences } from './chat.js';
 function getArg(name) {
     const index = process.argv.indexOf(`--${name}`);
     return index >= 0 ? process.argv[index + 1] : undefined;
@@ -168,14 +170,17 @@ function formatAdventureReport(result) {
 async function resolvePetId(explicitId) {
     if (explicitId)
         return explicitId;
+    const chatPreferences = await loadChatPreferences();
+    if (chatPreferences.defaultHeroId)
+        return chatPreferences.defaultHeroId;
     const saves = await listPetSaves();
     if (saves.length === 1)
         return saves[0].id;
     if (saves.length === 0)
         throw new Error('找不到任何角色存檔，請先用 create 建立角色。');
-    throw new Error(`這裡有 ${saves.length} 個角色，請加 --id 指定。可用角色：${saves.map(save => save.id).join(', ')}`);
+    throw new Error(`這裡有 ${saves.length} 個角色，請加 --id 指定，或先用 /pet use HERO_ID 設定預設角色。可用角色：${saves.map(save => save.id).join(', ')}`);
 }
-async function printStatus(idArg) {
+async function getStatusPayload(idArg, includeReport = false) {
     const id = await resolvePetId(idArg);
     const pet = await loadPet(id);
     const result = simulatePet(pet);
@@ -233,11 +238,14 @@ async function printStatus(idArg) {
         events: result.events.slice(-5),
         adventures: result.pet.hero.adventureLog.slice(-3)
     };
-    if (hasFlag('report'))
+    if (includeReport)
         payload.report = formatAdventureReport(result).join('\n');
-    console.log(JSON.stringify(payload, null, 2));
+    return payload;
 }
-async function mutate(idArg, action) {
+async function printStatus(idArg) {
+    console.log(JSON.stringify(await getStatusPayload(idArg, hasFlag('report')), null, 2));
+}
+async function getMutationPayload(idArg, action) {
     const id = await resolvePetId(idArg);
     const pet = await loadPet(id);
     const result = simulatePet(pet);
@@ -250,7 +258,7 @@ async function mutate(idArg, action) {
         actionText = cleanPet(result.pet);
     await savePet(result.pet);
     const rendered = await renderStatusCard({ pet: result.pet, summary: actionText });
-    console.log(JSON.stringify({
+    return {
         id: result.pet.id,
         action,
         heroClass: result.pet.hero.classProgress.current,
@@ -263,7 +271,10 @@ async function mutate(idArg, action) {
         level: result.pet.hero.level,
         exp: result.pet.hero.exp,
         expToNext: result.pet.hero.expToNext
-    }, null, 2));
+    };
+}
+async function mutate(idArg, action) {
+    console.log(JSON.stringify(await getMutationPayload(idArg, action), null, 2));
 }
 async function create() {
     const name = getArg('name');
@@ -300,23 +311,36 @@ function printEnemies() {
 function printSkills() {
     console.log(JSON.stringify(SKILLS, null, 2));
 }
-async function printSaves() {
+async function getSavesPayload() {
     const saves = await listPetSaves();
-    console.log(JSON.stringify({
+    const chatPreferences = await loadChatPreferences();
+    return {
         dataDir: DEFAULT_DATA_DIR,
         count: saves.length,
-        defaultHeroId: saves.length === 1 ? saves[0].id : null,
+        defaultHeroId: chatPreferences.defaultHeroId ?? (saves.length === 1 ? saves[0].id : null),
         saves
-    }, null, 2));
+    };
+}
+async function printSaves() {
+    console.log(JSON.stringify(await getSavesPayload(), null, 2));
 }
 async function printDoctor(idArg) {
     const saves = await listPetSaves();
     const requestedId = idArg ?? (saves.length === 1 ? saves[0].id : undefined);
+    const { config, configPath } = loadGameConfig();
     const payload = {
         currentSaveVersion: CURRENT_SAVE_VERSION,
         dataDir: DEFAULT_DATA_DIR,
         saveCount: saves.length,
         defaultHeroId: saves.length === 1 ? saves[0].id : null,
+        runtimeConfig: {
+            configPath: configPath ?? null,
+            cadence: config.cadence,
+            envOverrides: {
+                simulationBucketMinutes: process.env.MY_PET_HERO_SIM_BUCKET_MINUTES ?? null,
+                villageActivityBucketMinutes: process.env.MY_PET_HERO_VILLAGE_BUCKET_MINUTES ?? null
+            }
+        },
         migrationPolicy: {
             supportedFrom: [2, 3, 4, 5, 6, 7],
             target: CURRENT_SAVE_VERSION,
@@ -416,19 +440,22 @@ async function combatPreview(idArg) {
         turns: combat.turns
     }, null, 2));
 }
-async function printInventory(idArg) {
+async function getInventoryPayload(idArg) {
     const id = await resolvePetId(idArg);
     const pet = await loadPet(id);
     const result = simulatePet(pet);
     await savePet(result.pet);
-    console.log(JSON.stringify({
+    return {
         id: result.pet.id,
         heroClass: result.pet.hero.classProgress.current,
         gold: result.pet.hero.gold,
         equipmentSummary: formatEquipmentSummary(result.pet),
         inventory: result.pet.hero.equipment.inventory,
         inventoryLines: listInventory(result.pet)
-    }, null, 2));
+    };
+}
+async function printInventory(idArg) {
+    console.log(JSON.stringify(await getInventoryPayload(idArg), null, 2));
 }
 async function equipInventoryItem(idArg, itemId) {
     const id = await resolvePetId(idArg);
@@ -460,10 +487,82 @@ async function sellInventoryItem(idArg, itemId) {
         inventoryLines: listInventory(result.pet)
     }, null, 2));
 }
+async function printChatCommand() {
+    const rawInput = getArg('input') || process.argv.slice(3).join(' ').trim() || '';
+    const intent = parseChatCommand(rawInput);
+    if (intent.action === 'help') {
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            message: formatChatHelp()
+        }, null, 2));
+        return;
+    }
+    if (intent.action === 'heroes') {
+        const payload = await getSavesPayload();
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            message: '可用角色如下，可搭配 /pet use HERO_ID 設成預設角色。',
+            ...payload
+        }, null, 2));
+        return;
+    }
+    if (intent.action === 'use') {
+        if (!intent.heroId)
+            throw new Error('/pet use 需要 HERO_ID，例如 /pet use asaki');
+        await loadPet(intent.heroId);
+        await saveChatPreferences({ defaultHeroId: intent.heroId });
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            defaultHeroId: intent.heroId,
+            message: `之後會預設使用 ${intent.heroId}。`
+        }, null, 2));
+        return;
+    }
+    if (intent.action === 'status' || intent.action === 'report') {
+        const payload = await getStatusPayload(intent.heroId, intent.action === 'report');
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            message: typeof payload.headline === 'string' ? payload.headline : '角色近況如下。',
+            ...payload
+        }, null, 2));
+        return;
+    }
+    if (intent.action === 'inventory') {
+        const payload = await getInventoryPayload(intent.heroId);
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            message: `背包與裝備如下。`,
+            ...payload
+        }, null, 2));
+        return;
+    }
+    if (intent.action === 'feed' || intent.action === 'play' || intent.action === 'clean') {
+        const payload = await getMutationPayload(intent.heroId, intent.action);
+        console.log(JSON.stringify({
+            mode: 'chat',
+            rawInput,
+            command: intent.action,
+            message: typeof payload.summary === 'string' ? payload.summary : '已完成互動。',
+            ...payload
+        }, null, 2));
+        return;
+    }
+    throw new Error(`未知聊天指令動作: ${intent.action}`);
+}
 async function main() {
     const cmd = process.argv[2];
     if (!cmd || cmd === 'help') {
-        console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]`);
+        console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]\n  chat --input "/pet status"\n\nconfig:\n  my-pet-hero.config.json -> { \"cadence\": { \"simulationBucketMinutes\": 5, \"villageActivityBucketMinutes\": 5 } }\n  env overrides -> MY_PET_HERO_CONFIG, MY_PET_HERO_SIM_BUCKET_MINUTES, MY_PET_HERO_VILLAGE_BUCKET_MINUTES`);
         return;
     }
     if (cmd === 'create')
@@ -480,6 +579,8 @@ async function main() {
         return printDoctor(getArg('id'));
     if (cmd === 'inventory')
         return printInventory(getArg('id'));
+    if (cmd === 'chat')
+        return printChatCommand();
     if (cmd === 'combat-preview')
         return combatPreview(getArg('id'));
     if (cmd === 'dungeon-preview')

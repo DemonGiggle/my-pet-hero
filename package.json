@@ -10,7 +10,8 @@
     "start": "node dist/cli.js",
     "render": "tsx src/cli.ts status",
     "create": "tsx src/cli.ts create",
-    "check:migrations": "tsx scripts/check-migrations.ts"
+    "check:migrations": "tsx scripts/check-migrations.ts",
+    "validate:chat": "bash scripts/validate-chat.sh"
   },
   "keywords": [],
   "author": "",

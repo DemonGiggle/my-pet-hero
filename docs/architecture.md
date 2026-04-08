@@ -26,16 +26,23 @@ My Pet Hero 採用 query-time simulation：
 
 ### `src/cli.ts`
 - CLI 入口
-- 對外暴露 create / status / inventory / equip / sell / preview / action / saves / doctor 等指令
+- 對外暴露 create / status / inventory / equip / sell / preview / action / saves / doctor / chat 等指令
 - 單一存檔時可自動把它當 default hero，減少每次都要帶 `--id`
+- 若 chat preference 已指定 default hero，CLI 與 chat routing 都會共用
 - `status --report` 會整理 expedition 與 recent adventure log，並輸出 `headline` / `quickStatus`
+
+### `src/chat.ts`
+- slash-style chat command parser
+- 把 `/pet status`、`/pet report`、`/pet inventory` 這種短指令轉成既有遊戲操作
+- 管理 runtime `chat-preferences.json`，保存 default hero selection
+- 保持輸出 JSON，讓 OpenClaw / bot 容易拿 `message` 與 payload 欄位
 
 ### `src/state.ts`
 - 載入 / 驗證 / 儲存 pet state
 - 建立新角色
 - 定義 zod schema
-- 目前 schema version 為 7
-- `loadPet` 會自動將 v2~v6 存檔升級到 v7，成功後覆寫現檔並把原始 JSON 備份到 `backups/`
+- 目前 schema version 為 9
+- `loadPet` 會自動將 v2~v8 存檔升級到 v9，成功後覆寫現檔並把原始 JSON 備份到 `backups/`
 
 ### `src/simulate.ts`
 - 推進經過時間
@@ -200,17 +207,18 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 
 - `npm run build` 可通過
 - 新建角色可正常 `status`
-- `inventory` / `combat-preview` / `dungeon-preview` CLI 存在且可輸出當前 schema 資料
+- `inventory` / `combat-preview` / `dungeon-preview` / `chat` CLI 存在且可輸出當前 schema 資料
 - `doctor` 可輸出實際生效的 cadence config，方便驗證 runtime bucket 設定
+- `validate:chat` 可驗證 slash-style command routing 與 default hero persistence
 
-另外要注意：目前 migration 支援 v2~v7。比 v2 更舊，或未來比 v8 更新的存檔，會明確拒絕載入。
+另外要注意：目前 migration 支援 v2~v9。比 v2 更舊，或未來比 v9 更新的存檔，會明確拒絕載入。
 
 ## Save migration policy
 
-- 目前支援從 v2、v3、v4、v5、v6 自動升級到 v7
+- 目前支援從 v2、v3、v4、v5、v6、v7、v8 自動升級到 v9
 - migration 在 `loadPet` 發生，先做 step-by-step upgrade，再用現行 zod schema 驗證
 - 若有升級，會先把原始 JSON 備份到同資料夾下的 `backups/`，再覆寫主存檔
-- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以 `6 -> 7` 會補齊 expedition、village、equipment 與戰鬥缺省欄位
+- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以升級鏈中會先補齊 expedition、village、equipment 與戰鬥缺省欄位，再一路升到 v9
 - 小於 v2 或高於目前版本的存檔會直接拒絕載入，避免猜錯資料語意
 
 ## Next technical directions

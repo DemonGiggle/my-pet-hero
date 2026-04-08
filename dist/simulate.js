@@ -1,5 +1,6 @@
 import { SPECIES } from './species.js';
-import { bucketHours, clamp, hashToUnit, pickOne } from './utils.js';
+import { loadGameConfig } from './config.js';
+import { bucketMinutes, clamp, hashToUnit, pickOne } from './utils.js';
 import { autoDungeonRun, autoRecoverNeeds } from './systems.js';
 import { advanceVillageActivity, ensureVillageActivity } from './village.js';
 function moodLabel(mood) {
@@ -58,7 +59,8 @@ export function simulatePet(pet, nowIso = new Date().toISOString()) {
         - Math.max(0, 20 - pet.needs.energy) * 0.08
         + (pet.needs.hygiene > 75 ? 0.5 : 0));
     const events = [];
-    for (const bucket of bucketHours(pet.lastSimulatedAt, nowIso, 2)) {
+    const { config } = loadGameConfig();
+    for (const bucket of bucketMinutes(pet.lastSimulatedAt, nowIso, config.cadence.simulationBucketMinutes)) {
         const selfCare = autoRecoverNeeds(pet, bucket);
         if (selfCare.length > 0) {
             events.push({ at: bucket, type: 'self-care', delta: {}, text: selfCare.join('') });

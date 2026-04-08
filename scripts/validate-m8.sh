@@ -17,7 +17,7 @@ jq -e '.id == "asaki"' /tmp/mph-create.json > /dev/null
 jq -e '.headline and .quickStatus and .report' /tmp/mph-status.json > /dev/null
 jq -e '.inventoryLines' /tmp/mph-inventory.json > /dev/null
 jq -e '.count == 1 and .defaultHeroId == "asaki"' /tmp/mph-saves.json > /dev/null
-jq -e '.migrationPolicy.target == 7 and .pet.id == "asaki"' /tmp/mph-doctor.json > /dev/null
+jq -e '.migrationPolicy.target == 9 and .pet.id == "asaki"' /tmp/mph-doctor.json > /dev/null
 jq -e '.triggered != null and .after.location' /tmp/mph-dungeon.json > /dev/null
 
 echo 'STATUS_HEADLINE:'
