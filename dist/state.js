@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
+export const CURRENT_SAVE_VERSION = 7;
 const needsSchema = z.object({
     health: z.number(),
     hunger: z.number(),
@@ -269,6 +270,191 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_DIR, '..');
 export const LEGACY_DATA_DIR = path.join(REPO_ROOT, 'data', 'pets');
 export const DEFAULT_DATA_DIR = resolveDefaultDataDir();
+function isRecord(value) {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+function ensureExpeditionShape(expedition) {
+    if (!isRecord(expedition))
+        return expedition;
+    return {
+        ...expedition,
+        totalExpGained: typeof expedition.totalExpGained === 'number' ? expedition.totalExpGained : 0,
+        totalGoldGained: typeof expedition.totalGoldGained === 'number' ? expedition.totalGoldGained : 0,
+        villagePreparation: Array.isArray(expedition.villagePreparation) ? expedition.villagePreparation : [],
+        returnSummary: typeof expedition.returnSummary === 'string' ? expedition.returnSummary : undefined,
+        completed: typeof expedition.completed === 'boolean' ? expedition.completed : false,
+        logs: Array.isArray(expedition.logs) ? expedition.logs : []
+    };
+}
+function migrateSaveData(raw) {
+    if (!isRecord(raw)) {
+        throw new Error('Invalid save file: expected top-level object.');
+    }
+    const version = typeof raw.version === 'number' ? raw.version : NaN;
+    if (!Number.isInteger(version)) {
+        throw new Error('Invalid save file: missing numeric version.');
+    }
+    if (version < 2) {
+        throw new Error(`Unsupported save version ${version}. Supported versions start at 2.`);
+    }
+    if (version > CURRENT_SAVE_VERSION) {
+        throw new Error(`Save version ${version} is newer than supported version ${CURRENT_SAVE_VERSION}.`);
+    }
+    const originalVersion = version;
+    let changed = false;
+    const migrated = cloneJson(raw);
+    while (migrated.version < CURRENT_SAVE_VERSION) {
+        const currentVersion = migrated.version;
+        if (currentVersion === 2) {
+            const species = migrated.species;
+            const currentClass = recommendClass(species);
+            const hero = isRecord(migrated.hero) ? migrated.hero : {};
+            hero.classProgress = {
+                current: currentClass,
+                unlocked: [currentClass],
+                aptitude: buildAptitude(species)
+            };
+            migrated.hero = hero;
+            migrated.version = 3;
+            changed = true;
+            continue;
+        }
+        if (currentVersion === 3) {
+            migrated.version = 4;
+            changed = true;
+            continue;
+        }
+        if (currentVersion === 4) {
+            const hero = isRecord(migrated.hero) ? migrated.hero : {};
+            const adventureLog = Array.isArray(hero.adventureLog) ? hero.adventureLog : [];
+            hero.adventureLog = adventureLog.map(entry => {
+                if (!isRecord(entry))
+                    return entry;
+                const combat = isRecord(entry.combat) ? entry.combat : undefined;
+                if (!combat)
+                    return entry;
+                const normalizeCombatant = (combatant) => {
+                    if (!isRecord(combatant))
+                        return combatant;
+                    return {
+                        ...combatant,
+                        shield: typeof combatant.shield === 'number' ? combatant.shield : 0
+                    };
+                };
+                return {
+                    ...entry,
+                    combat: {
+                        ...combat,
+                        hero: normalizeCombatant(combat.hero),
+                        enemyState: normalizeCombatant(combat.enemyState),
+                        turns: Array.isArray(combat.turns)
+                            ? combat.turns.map(turn => isRecord(turn) ? { ...turn, skill: turn.skill } : turn)
+                            : [],
+                        skillsUsed: Array.isArray(combat.skillsUsed) ? combat.skillsUsed : []
+                    }
+                };
+            });
+            migrated.hero = hero;
+            migrated.version = 5;
+            changed = true;
+            continue;
+        }
+        if (currentVersion === 5) {
+            migrated.version = 6;
+            changed = true;
+            continue;
+        }
+        if (currentVersion === 6) {
+            const now = typeof migrated.updatedAt === 'string'
+                ? migrated.updatedAt
+                : (typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString());
+            const hero = isRecord(migrated.hero) ? migrated.hero : {};
+            const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
+            const hasCurrentDungeon = isRecord(dungeon.currentDungeon);
+            hero.equipment = isRecord(hero.equipment)
+                ? {
+                    ...hero.equipment,
+                    equipped: isRecord(hero.equipment.equipped) ? hero.equipment.equipped : {},
+                    inventory: Array.isArray(hero.equipment.inventory) ? hero.equipment.inventory : []
+                }
+                : {
+                    equipped: {},
+                    inventory: []
+                };
+            dungeon.location = dungeon.location === 'dungeon' || dungeon.location === 'village'
+                ? dungeon.location
+                : (hasCurrentDungeon ? 'dungeon' : 'village');
+            dungeon.expeditionHistory = Array.isArray(dungeon.expeditionHistory)
+                ? dungeon.expeditionHistory.map(ensureExpeditionShape)
+                : [];
+            dungeon.currentExpedition = dungeon.currentExpedition ? ensureExpeditionShape(dungeon.currentExpedition) : undefined;
+            dungeon.village = isRecord(dungeon.village)
+                ? {
+                    ...dungeon.village,
+                    name: typeof dungeon.village.name === 'string' ? dungeon.village.name : '晨霧村',
+                    supplies: isRecord(dungeon.village.supplies)
+                        ? {
+                            food: typeof dungeon.village.supplies.food === 'number' ? dungeon.village.supplies.food : 3,
+                            water: typeof dungeon.village.supplies.water === 'number' ? dungeon.village.supplies.water : 3,
+                            herbs: typeof dungeon.village.supplies.herbs === 'number' ? dungeon.village.supplies.herbs : 1
+                        }
+                        : { food: 3, water: 3, herbs: 1 },
+                    lastVisitedAt: typeof dungeon.village.lastVisitedAt === 'string' ? dungeon.village.lastVisitedAt : now
+                }
+                : {
+                    name: '晨霧村',
+                    supplies: { food: 3, water: 3, herbs: 1 },
+                    lastVisitedAt: now
+                };
+            const adventureLog = Array.isArray(hero.adventureLog) ? hero.adventureLog : [];
+            hero.adventureLog = adventureLog.map(entry => {
+                if (!isRecord(entry))
+                    return entry;
+                const combat = isRecord(entry.combat) ? entry.combat : undefined;
+                return {
+                    ...entry,
+                    rewards: Array.isArray(entry.rewards) ? entry.rewards : undefined,
+                    roomSummary: typeof entry.roomSummary === 'string' ? entry.roomSummary : undefined,
+                    roomEffect: isRecord(entry.roomEffect) ? entry.roomEffect : undefined,
+                    runState: isRecord(entry.runState) ? entry.runState : undefined,
+                    combat: combat
+                        ? {
+                            ...combat,
+                            hero: isRecord(combat.hero)
+                                ? { ...combat.hero, shield: typeof combat.hero.shield === 'number' ? combat.hero.shield : 0 }
+                                : combat.hero,
+                            enemyState: isRecord(combat.enemyState)
+                                ? { ...combat.enemyState, shield: typeof combat.enemyState.shield === 'number' ? combat.enemyState.shield : 0 }
+                                : combat.enemyState,
+                            skillsUsed: Array.isArray(combat.skillsUsed) ? combat.skillsUsed : []
+                        }
+                        : undefined
+                };
+            });
+            hero.dungeon = dungeon;
+            migrated.hero = hero;
+            migrated.version = 7;
+            changed = true;
+            continue;
+        }
+        throw new Error(`Unsupported migration path from version ${currentVersion}.`);
+    }
+    return {
+        migrated: petStateSchema.parse(migrated),
+        fromVersion: originalVersion,
+        changed
+    };
+}
+async function backupOriginalSave(id, raw, fromVersion, dataDir) {
+    const backupDir = path.join(dataDir, 'backups');
+    await mkdir(backupDir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(backupDir, `${id}.v${fromVersion}.${timestamp}.json`);
+    await writeFile(backupPath, raw, 'utf8');
+}
 function resolveDefaultDataDir() {
     const envDir = process.env.MY_PET_HERO_DATA_DIR?.trim();
     if (envDir)
@@ -314,8 +500,14 @@ export function petFilePath(id, dataDir = DEFAULT_DATA_DIR) {
 }
 export async function loadPet(id, dataDir = DEFAULT_DATA_DIR) {
     const resolvedDataDir = await ensureDataDir(dataDir);
-    const raw = await readFile(petFilePath(id, resolvedDataDir), 'utf8');
-    return petStateSchema.parse(JSON.parse(raw));
+    const filePath = petFilePath(id, resolvedDataDir);
+    const raw = await readFile(filePath, 'utf8');
+    const { migrated, fromVersion, changed } = migrateSaveData(JSON.parse(raw));
+    if (changed) {
+        await backupOriginalSave(id, raw, fromVersion, resolvedDataDir);
+        await writeFile(filePath, JSON.stringify(migrated, null, 2) + '\n', 'utf8');
+    }
+    return migrated;
 }
 export async function savePet(pet, dataDir = DEFAULT_DATA_DIR) {
     const resolvedDataDir = await ensureDataDir(dataDir);
@@ -350,7 +542,7 @@ export function createPet(params) {
     const finalAttributes = applyClassAttributeBonus(params.species, currentClass, baseAttributes);
     const aptitude = buildAptitude(params.species);
     return {
-        version: 7,
+        version: CURRENT_SAVE_VERSION,
         id: params.id,
         name: params.name,
         species: params.species,

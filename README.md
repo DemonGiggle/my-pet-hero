@@ -166,7 +166,7 @@ npm run dev -- enemies
 
 ## 目前限制
 
-- 很舊、缺少新版欄位的存檔，仍可能因 schema 差距而載入失敗
+- v2~v6 舊存檔會在載入時自動 migration 到 v7，並先備份原始 JSON
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - room graph 目前已帶有少量 branching 資訊，但實際推進仍是線性前進到下一房
 - 還沒有 status effects、進階職業、技能成長、陷阱、商店互動

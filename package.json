@@ -9,7 +9,8 @@
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
     "render": "tsx src/cli.ts status",
-    "create": "tsx src/cli.ts create"
+    "create": "tsx src/cli.ts create",
+    "check:migrations": "tsx scripts/check-migrations.ts"
   },
   "keywords": [],
   "author": "",

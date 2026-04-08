@@ -34,7 +34,7 @@ My Pet Hero 採用 query-time simulation：
 - 建立新角色
 - 定義 zod schema
 - 目前 schema version 為 7
-- 目前沒有舊版存檔 migration，欄位不完整的舊檔會直接驗證失敗
+- `loadPet` 會自動將 v2~v6 存檔升級到 v7，成功後覆寫現檔並把原始 JSON 備份到 `backups/`
 
 ### `src/simulate.ts`
 - 推進經過時間
@@ -178,11 +178,18 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - 新建角色可正常 `status`
 - `inventory` / `combat-preview` / `dungeon-preview` CLI 存在且可輸出當前 schema 資料
 
-另外要注意：非常舊、缺少新版欄位的存檔，因為尚未做 schema migration，仍可能會在 `loadPet` 驗證時失敗。
+另外要注意：目前 migration 支援 v2~v6。比 v2 更舊，或未來比 v7 更新的存檔，會明確拒絕載入。
+
+## Save migration policy
+
+- 目前支援從 v2、v3、v4、v5、v6 自動升級到 v7
+- migration 在 `loadPet` 發生，先做 step-by-step upgrade，再用現行 zod schema 驗證
+- 若有升級，會先把原始 JSON 備份到同資料夾下的 `backups/`，再覆寫主存檔
+- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以 `6 -> 7` 會補齊 expedition、village、equipment 與戰鬥缺省欄位
+- 小於 v2 或高於目前版本的存檔會直接拒絕載入，避免猜錯資料語意
 
 ## Next technical directions
 
-- 存檔 migration
 - map UX / minimap
 - status effects system
 - enemy abilities 深化
