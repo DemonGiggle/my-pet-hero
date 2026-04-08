@@ -16,5 +16,13 @@
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.41"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "bundle": {
+      "stageRuntimeDependencies": true
+    }
   }
 }
