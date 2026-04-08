@@ -16,6 +16,7 @@
 - `status --report` 人類可讀近況摘要
 - 單一角色時可省略 `--id`
 - `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
+- `/pet` 專用的可重現圖文輸出 contract，讓 wrapper 可用 raw data 包裝出短篇奇幻敘事並附圖
 - `skills/pet/` OpenClaw skill，可把 `/pet` 註冊成真正的 Telegram / native bot command
 - `openclaw-plugin/` OpenClaw plugin，提供 deterministic `my_pet_hero_pet` tool，讓 `/pet` 可用 `command-dispatch: tool` 直接執行，不經 LLM
 - `saves` / `doctor` 管理與 migration 診斷指令
@@ -142,6 +143,8 @@ openclaw plugins install ./openclaw-plugin
 設計重點：
 
 - 聊天指令仍然輸出 JSON，方便 OpenClaw agent 直接取 `message`、`headline`、`report`、`inventoryLines`
+- `/pet status` / `/pet report` 也會輸出 `narrationSeed`、`storyBeats`、`riskSummary`、`keyStats`，讓另一個 OpenClaw clone 後也能用同樣規格重現圖文說書體驗
+- plugin tool 會在可用時一併回傳狀態圖，避免把圖片流程藏在本機 prompt 細節裡
 - `/pet use HERO_ID` 會把預設角色存在 runtime state directory 的 `chat-preferences.json`，不寫進 repo，也不需要硬編本機路徑
 - 若已設定預設角色，之後 `status` / `inventory` / `feed` 這些一般 CLI 入口也可直接沿用，不必每次補 `--id`
 
@@ -275,5 +278,7 @@ npm run dev -- doctor --id asaki
 
 - 技術架構：`docs/architecture.md`
 - OpenClaw / chat routing：`docs/openclaw-chat.md`
+- `/pet` 圖文輸出 contract：`docs/chat-output-contract.md`
+- `/pet` 說書風格規格：`docs/narration-style.md`
 - 遊戲設計：`docs/game-design.md`
 - milestone 狀態：`plan.md`

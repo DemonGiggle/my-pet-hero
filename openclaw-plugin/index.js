@@ -40,11 +40,16 @@ function normalizeRawPetCommand(raw) {
 
 function pickMessage(payload) {
   if (!payload || typeof payload !== 'object') return 'My Pet Hero command finished.';
-  const candidates = [payload.message, payload.report, payload.headline];
+  const candidates = [payload.message, payload.report, payload.headline, payload.quickStatus];
   for (const value of candidates) {
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return JSON.stringify(payload, null, 2);
+}
+
+function pickImagePath(payload) {
+  if (!payload || typeof payload !== 'object') return undefined;
+  return typeof payload.imagePath === 'string' && payload.imagePath.trim() ? payload.imagePath.trim() : undefined;
 }
 
 async function runPetCommand(api, rawCommand) {
@@ -92,8 +97,11 @@ export default definePluginEntry({
       }),
       async execute(_toolCallId, params) {
         const { payload, text } = await runPetCommand(api, params.command);
+        const imagePath = pickImagePath(payload);
         return {
-          content: [{ type: 'text', text }],
+          content: imagePath
+            ? [{ type: 'text', text }, { type: 'image', image: imagePath }]
+            : [{ type: 'text', text }],
           details: payload
         };
       }

@@ -110,6 +110,24 @@ node dist/cli.js chat --input "/pet status"
 
 The command returns JSON with a compact top-level `message` plus the richer game payload.
 
+For reproducible presentation quality across OpenClaw clones, treat the CLI payload as two layers:
+
+- deterministic game output
+- presentation-facing narration scaffolding
+
+Key wrapper-facing fields now include:
+
+- `message`
+- `headline`
+- `quickStatus`
+- `imagePath`
+- `narrationSeed`
+- `storyBeats`
+- `riskSummary`
+- `keyStats`
+
+See `docs/chat-output-contract.md` and `docs/narration-style.md` for the portable presentation contract.
+
 ## Supported commands
 
 - `/pet status [heroId]`
@@ -132,11 +150,23 @@ node dist/cli.js chat --input "$USER_MESSAGE"
 
 Then map the JSON fields roughly as follows:
 
-- `message`: first reply line
+- `message`: deterministic fallback line
 - `headline`: short status summary
+- `quickStatus`: deterministic condition summary
 - `report`: long-form adventure update
 - `inventoryLines`: inventory bullets
-- `imagePath`: optional status card image
+- `imagePath`: status card image, attach by default when present
+- `narrationSeed`: compact scene / arc / danger / momentum hints for packaging
+- `storyBeats`: filtered recent developments for storytelling
+- `riskSummary`: concise warning or momentum judgment
+- `keyStats`: compact decision-relevant stats
+
+Recommended wrapper behavior for default `/pet`:
+
+1. attach the image when possible
+2. write a short fantasy-flavored narration from `narrationSeed` and `storyBeats`
+3. optionally include a compact stat block from `keyStats`
+4. avoid dumping the raw JSON or turning the reply into a dashboard
 
 ## Default hero behavior
 
