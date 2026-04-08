@@ -163,16 +163,21 @@
 目標：建立長期成長的主要外部系統。
 
 ### Scope
-- [ ] weapon / armor / accessory slots
-- [ ] item rarity
-- [ ] dungeon drops
-- [ ] class weapon compatibility
-- [ ] equipment stats impact
-- [ ] inventory / stash 基礎
+- [x] weapon / armor / accessory slots
+- [x] item rarity
+- [x] dungeon drops
+- [x] class weapon compatibility
+- [x] equipment stats impact
+- [x] inventory / stash 基礎
+
+### Notes
+- 迷宮掉落會自動進背包，若更強則自動換裝
+- CLI 可查看 inventory、手動 equip、sell 多餘裝備換金
+- 裝備加成直接進入戰鬥屬性計算，loot 不再只是文字裝飾
 
 ### Exit Criteria
-- 角色成長不再只靠 level
-- loot 有實際價值
+- [x] 角色成長不再只靠 level
+- [x] loot 有實際價值
 
 ---
 

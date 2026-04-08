@@ -1,16 +1,13 @@
 import { HeroClass, PetState } from './types.js';
-import { CLASSES } from './classes.js';
 import { clamp, hashToUnit, pickOne } from './utils.js';
 
 export const EQUIPMENT_SLOTS = ['weapon', 'armor', 'accessory'] as const;
 
-const SLOT_LABELS = {
+export const SLOT_LABELS = {
   weapon: '武器',
   armor: '防具',
   accessory: '飾品'
 } as const;
-
-const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'] as const;
 
 const RARITY_LABEL = {
   common: '普通',
@@ -64,6 +61,21 @@ function newId(seed: string): string {
   return `gear-${Math.round(hashToUnit(seed) * 1_000_000_000)}`;
 }
 
+function ensureInventoryItem(pet: PetState, itemId: string) {
+  const item = pet.hero.equipment.inventory.find((candidate) => candidate.id === itemId);
+  if (!item) throw new Error(`找不到裝備：${itemId}`);
+  return item;
+}
+
+function removeInventoryItem(pet: PetState, itemId: string) {
+  pet.hero.equipment.inventory = pet.hero.equipment.inventory.filter((item) => item.id !== itemId);
+}
+
+function formatBonusValue(key: keyof NonNullable<PetState['hero']['equipment']['inventory'][number]>['bonuses'], value: number): string {
+  if (key === 'accuracy' || key === 'evasion' || key === 'crit') return `+${Math.round(value * 100)}%`;
+  return `+${value}`;
+}
+
 export function computeEquipmentBonuses(pet: PetState) {
   const items = Object.values(pet.hero.equipment.equipped).filter(Boolean);
   return items.reduce((acc, item) => {
@@ -98,6 +110,25 @@ export function gearScore(item: NonNullable<PetState['hero']['equipment']['inven
     + (item.bonuses.accuracy ?? 0) * 35
     + (item.bonuses.evasion ?? 0) * 35
     + (item.bonuses.crit ?? 0) * 45;
+}
+
+export function gearValue(item: NonNullable<PetState['hero']['equipment']['inventory'][number]>): number {
+  const rarityFactor = item.rarity === 'epic' ? 3.4 : item.rarity === 'rare' ? 2.2 : item.rarity === 'uncommon' ? 1.5 : 1;
+  return Math.max(4, Math.round((6 + item.itemLevel * 3 + gearScore(item) * 0.65) * rarityFactor));
+}
+
+export function describeItem(item: NonNullable<PetState['hero']['equipment']['inventory'][number]>): string {
+  const bonuses = Object.entries(item.bonuses)
+    .map(([key, value]) => `${key}${formatBonusValue(key as keyof typeof item.bonuses, value as number)}`)
+    .join(' / ');
+  return `${item.name} [${SLOT_LABELS[item.slot]} / Lv${item.itemLevel} / ${RARITY_LABEL[item.rarity]} / ${bonuses || '無加成'} / ${gearValue(item)}G]`;
+}
+
+export function listInventory(pet: PetState): string[] {
+  if (pet.hero.equipment.inventory.length === 0) return ['背包是空的。'];
+  return [...pet.hero.equipment.inventory]
+    .sort((a, b) => gearScore(b) - gearScore(a))
+    .map((item) => `${item.id} | ${describeItem(item)}${pet.hero.equipment.equipped[item.slot]?.id === item.id ? ' (已裝備)' : ''}`);
 }
 
 export function maybeGenerateLoot(pet: PetState, floor: number, at: string, roomType?: string) {
@@ -150,6 +181,28 @@ export function autoEquipLoot(pet: PetState, item: NonNullable<PetState['hero'][
     return `換上了新${SLOT_LABELS[item.slot]}「${item.name}」`;
   }
   return `撿到${SLOT_LABELS[item.slot]}「${item.name}」，先收進背包。`;
+}
+
+export function equipItemById(pet: PetState, itemId: string): string {
+  const item = ensureInventoryItem(pet, itemId);
+  const current = pet.hero.equipment.equipped[item.slot];
+  pet.hero.equipment.equipped[item.slot] = item;
+  pet.hero.equipment.lastEquippedAt = new Date().toISOString();
+  pet.needs.mood = clamp(pet.needs.mood + (current?.id === item.id ? 0 : 2));
+  return current?.id === item.id
+    ? `${SLOT_LABELS[item.slot]}仍是「${item.name}」。`
+    : `手動換上${SLOT_LABELS[item.slot]}「${item.name}」${current ? `，替下「${current.name}」` : ''}。`;
+}
+
+export function sellItemById(pet: PetState, itemId: string): string {
+  const item = ensureInventoryItem(pet, itemId);
+  const value = gearValue(item);
+  removeInventoryItem(pet, itemId);
+  if (pet.hero.equipment.equipped[item.slot]?.id === item.id) {
+    pet.hero.equipment.equipped[item.slot] = undefined;
+  }
+  pet.hero.gold += value;
+  return `賣掉${SLOT_LABELS[item.slot]}「${item.name}」，獲得 ${value} Gold。`;
 }
 
 export function formatEquipmentSummary(pet: PetState): string[] {

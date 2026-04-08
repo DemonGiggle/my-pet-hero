@@ -45,6 +45,14 @@ npm run dev -- status --id asaki --report
 npm run dev -- combat-preview --id asaki --floor 3
 ```
 
+### 裝備與背包
+
+```bash
+npm run dev -- inventory --id asaki
+npm run dev -- equip --id asaki --item gear-123456789
+npm run dev -- sell --id asaki --item gear-123456789
+```
+
 ### 互動指令
 
 ```bash
@@ -65,6 +73,9 @@ npm run dev -- enemies
 
 - `create --name NAME --species SPECIES [--class CLASS]`
 - `status --id PET_ID [--report]`
+- `inventory --id PET_ID`
+- `equip --id PET_ID --item ITEM_ID`
+- `sell --id PET_ID --item ITEM_ID`
 - `combat-preview --id PET_ID [--floor N]`
 - `feed --id PET_ID`
 - `play --id PET_ID`

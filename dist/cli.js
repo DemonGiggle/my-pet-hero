@@ -8,7 +8,7 @@ import { CLASS_LIST, recommendClass } from './classes.js';
 import { runCombat, ENEMIES } from './combat.js';
 import { SKILLS } from './skills.js';
 import { autoDungeonRun } from './systems.js';
-import { formatEquipmentSummary } from './gear.js';
+import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
 function getArg(name) {
     const index = process.argv.indexOf(`--${name}`);
     return index >= 0 ? process.argv[index + 1] : undefined;
@@ -276,16 +276,63 @@ async function combatPreview(id) {
         turns: combat.turns
     }, null, 2));
 }
+async function printInventory(id) {
+    const pet = await loadPet(id);
+    const result = simulatePet(pet);
+    await savePet(result.pet);
+    console.log(JSON.stringify({
+        id: result.pet.id,
+        heroClass: result.pet.hero.classProgress.current,
+        gold: result.pet.hero.gold,
+        equipmentSummary: formatEquipmentSummary(result.pet),
+        inventory: result.pet.hero.equipment.inventory,
+        inventoryLines: listInventory(result.pet)
+    }, null, 2));
+}
+async function equipInventoryItem(id, itemId) {
+    const pet = await loadPet(id);
+    const result = simulatePet(pet);
+    const summary = equipItemById(result.pet, itemId);
+    await savePet(result.pet);
+    console.log(JSON.stringify({
+        id: result.pet.id,
+        summary,
+        equippedItem: describeItem(result.pet.hero.equipment.inventory.find((item) => item.id === itemId)),
+        equipment: result.pet.hero.equipment,
+        equipmentSummary: formatEquipmentSummary(result.pet),
+        gold: result.pet.hero.gold
+    }, null, 2));
+}
+async function sellInventoryItem(id, itemId) {
+    const pet = await loadPet(id);
+    const result = simulatePet(pet);
+    const summary = sellItemById(result.pet, itemId);
+    await savePet(result.pet);
+    console.log(JSON.stringify({
+        id: result.pet.id,
+        summary,
+        gold: result.pet.hero.gold,
+        equipment: result.pet.hero.equipment,
+        equipmentSummary: formatEquipmentSummary(result.pet),
+        inventoryLines: listInventory(result.pet)
+    }, null, 2));
+}
 async function main() {
     const cmd = process.argv[2];
     if (!cmd || cmd === 'help') {
-        console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  dungeon-preview --id PET_ID [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
+        console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status --id PET_ID [--report]\n  inventory --id PET_ID\n  equip --id PET_ID --item ITEM_ID\n  sell --id PET_ID --item ITEM_ID\n  classes\n  skills\n  enemies\n  combat-preview --id PET_ID [--floor N]\n  dungeon-preview --id PET_ID [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed --id PET_ID\n  play --id PET_ID\n  clean --id PET_ID`);
         return;
     }
     if (cmd === 'create')
         return create();
     if (cmd === 'classes')
         return printClasses();
+    if (cmd === 'inventory') {
+        const id = getArg('id');
+        if (!id)
+            throw new Error('inventory 需要 --id');
+        return printInventory(id);
+    }
     if (cmd === 'skills')
         return printSkills();
     if (cmd === 'enemies')
@@ -301,6 +348,20 @@ async function main() {
         if (!id)
             throw new Error('dungeon-preview 需要 --id');
         return dungeonPreview(id);
+    }
+    if (cmd === 'equip') {
+        const id = getArg('id');
+        const itemId = getArg('item');
+        if (!id || !itemId)
+            throw new Error('equip 需要 --id 與 --item');
+        return equipInventoryItem(id, itemId);
+    }
+    if (cmd === 'sell') {
+        const id = getArg('id');
+        const itemId = getArg('item');
+        if (!id || !itemId)
+            throw new Error('sell 需要 --id 與 --item');
+        return sellInventoryItem(id, itemId);
     }
     const id = getArg('id');
     if (!id)
