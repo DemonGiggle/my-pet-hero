@@ -218,19 +218,22 @@
 目標：讓這專案更適合自然語言操作與日常使用。
 
 ### Scope
-- [ ] default hero UX 補強
-- [~] 更好的 report 文本格式
-- [ ] 更好的 image summary
-- [ ] natural-language workflow mapping
-- [ ] debug / admin commands
-- [ ] migration strategy for old save versions
+- [x] default hero UX 補強
+- [x] 更好的 report 文本格式
+- [x] 更好的 image summary
+- [~] natural-language workflow mapping
+- [x] debug / admin commands
+- [x] migration strategy for old save versions
 
 ### Notes
-- 目前 `status --report` 已可讀，但仍偏 debug / JSON-friendly
-- 舊存檔缺少 migration，這件事已經開始變重要
+- `status --report` 已改成 headline / quick status / expedition / recent events 的對人敘述格式
+- 舊存檔 migration 策略已明確化，並補上 `doctor` / `check:migrations` 驗證面
+- minimap 仍值得做，但屬於 M4 地圖 UX，本輪不提前硬塞進 M8
 
 ### Exit Criteria
 - 使用者用自然語言問「我的寵物怎樣了」時，流程穩、結果清楚
+- 單一角色日常查詢不需要每次手動指定 `--id`
+- migration 與存檔概況有可見、可驗證的管理入口
 
 ---
 
@@ -240,9 +243,9 @@
 - [~] M8 - Usability and assistant integration
 
 ### Immediate Next Tasks
-- [ ] 決定舊存檔 migration 策略
-- [ ] 把 report 再整理得更像對人講話，不只像 debug 輸出
-- [ ] 決定 minimap / map UX 是否值得提前到 M4
+- [x] 決定舊存檔 migration 策略
+- [x] 把 report 再整理得更像對人講話，不只像 debug 輸出
+- [x] 決定 minimap / map UX 是否值得提前到 M4（結論：先不提前，維持 M8 專注在 UX / integration）
 
 ---
 

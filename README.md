@@ -13,7 +13,9 @@
 - 村莊 → 地下城 → 回村的 expedition loop
 - 裝備、掉寶、背包、自動換裝、手動 equip / sell
 - 狀態 PNG 輸出
-- `status --report` 冒險摘要
+- `status --report` 人類可讀近況摘要
+- 單一角色時可省略 `--id`
+- `saves` / `doctor` 管理與 migration 診斷指令
 
 ## 安裝
 
@@ -44,6 +46,12 @@ npm run create -- --name Asaki --species elf --class mage
 
 ```bash
 npm run dev -- status --id asaki
+```
+
+如果目前只有一個角色，也可以直接：
+
+```bash
+npm run dev -- status
 ```
 
 ### 查看狀態 + 近期冒險報告
@@ -85,26 +93,30 @@ npm run dev -- play --id asaki
 npm run dev -- clean --id asaki
 ```
 
-### 查資料表
+### 查資料表 / 管理資訊
 
 ```bash
 npm run dev -- classes
 npm run dev -- skills
 npm run dev -- enemies
+npm run dev -- saves
+npm run dev -- doctor --id asaki
 ```
 
 ## 指令列表
 
 - `create --name NAME --species SPECIES [--class CLASS]`
-- `status --id PET_ID [--report]`
-- `inventory --id PET_ID`
-- `equip --id PET_ID --item ITEM_ID`
-- `sell --id PET_ID --item ITEM_ID`
-- `combat-preview --id PET_ID [--floor N]`
-- `dungeon-preview --id PET_ID [--floor N] [--at ISO] [--repeat N] [--force-ready]`
-- `feed --id PET_ID`
-- `play --id PET_ID`
-- `clean --id PET_ID`
+- `status [--id PET_ID] [--report]`
+- `inventory [--id PET_ID]`
+- `equip [--id PET_ID] --item ITEM_ID`
+- `sell [--id PET_ID] --item ITEM_ID`
+- `saves`
+- `doctor [--id PET_ID]`
+- `combat-preview [--id PET_ID] [--floor N]`
+- `dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]`
+- `feed [--id PET_ID]`
+- `play [--id PET_ID]`
+- `clean [--id PET_ID]`
 - `classes`
 - `skills`
 - `enemies`
@@ -141,15 +153,18 @@ npm run dev -- enemies
 - `sell` 會把裝備自背包移除並換成 gold
 - 裝備加成會直接影響戰鬥屬性
 
-### 5. report 目前偏向 debug-friendly
+### 5. report 現在比較像對玩家說話
 
 `status --report` 會整理：
 
-- 角色等級、職業、情緒與所在位置
+- 角色近況 headline
+- 目前狀態重點（例如疲勞、飢渴、低血量）
 - 目前裝備摘要
-- 目前進行中的探險，或上一趟探險結算
+- 正在進行中的探險，或上一趟探險結算
 - 最近幾筆 adventure log
 - 房型、收益、戰鬥摘要、技能使用
+
+另外 `headline` / `quickStatus` 也會直接放進 `status` JSON，方便 bot 或自然語言介面直接取用。
 
 ## 驗證狀態
 
@@ -167,6 +182,7 @@ npm run dev -- enemies
 ## 目前限制
 
 - v2~v6 舊存檔會在載入時自動 migration 到 v7，並先備份原始 JSON
+- `doctor` 目前提供的是 migration 策略與存檔概況，不是完整 repair tool
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - room graph 目前已帶有少量 branching 資訊，但實際推進仍是線性前進到下一房
 - 還沒有 status effects、進階職業、技能成長、陷阱、商店互動

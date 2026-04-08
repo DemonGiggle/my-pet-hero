@@ -26,8 +26,9 @@ My Pet Hero 採用 query-time simulation：
 
 ### `src/cli.ts`
 - CLI 入口
-- 對外暴露 create / status / inventory / equip / sell / preview / action 等指令
-- `status --report` 會整理 expedition 與 recent adventure log
+- 對外暴露 create / status / inventory / equip / sell / preview / action / saves / doctor 等指令
+- 單一存檔時可自動把它當 default hero，減少每次都要帶 `--id`
+- `status --report` 會整理 expedition 與 recent adventure log，並輸出 `headline` / `quickStatus`
 
 ### `src/state.ts`
 - 載入 / 驗證 / 儲存 pet state
@@ -74,6 +75,7 @@ My Pet Hero 採用 query-time simulation：
 ### `src/render.ts`
 - 產生像素風狀態圖 PNG
 - 圖上顯示角色名稱、等級、needs、attributes、deepest floor、summary
+- summary 現在由 CLI 先整理成較短的人類可讀摘要，再交給 renderer 壓成 ASCII-safe 文案
 - 輸出到使用者狀態目錄下的 `my-pet-hero/renders`
 
 ## Persisted state
@@ -143,8 +145,23 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - currentDungeon / currentRoom
 - level / exp / gold / attributes / needs
 - equipment / equipmentSummary
+- `headline` / `quickStatus`
 - recent events / adventures
 - `--report` 時額外附加文字摘要
+
+### `saves`
+包含：
+- data dir
+- 存檔數量
+- 若只有一個角色時的 defaultHeroId
+- 每個存檔的 id / 名稱 / species / version / updatedAt
+
+### `doctor`
+包含：
+- 目前 schema version
+- migration policy 摘要
+- data dir 與存檔數量
+- 指定角色時，額外列出該存檔基本健康資訊
 
 ### `inventory`
 包含：

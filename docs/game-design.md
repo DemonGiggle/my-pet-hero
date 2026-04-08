@@ -178,14 +178,14 @@ My Pet Hero 不是單純餵食型電子寵物，而是會自己生活、自己�
 
 ## Report 設計方向
 
-`status --report` 現在偏向半敘事、半 debug：
+`status --report` 現在已經先往自然語言前進一版：
 
-- 看得出角色現在在哪
-- 看得到當前裝備
-- 看得到本次或上一趟 expedition summary
-- 看得到最近 adventure log 與戰鬥摘要
+- 先給一行近況 headline
+- 再指出目前最需要注意的身體狀態
+- 接著整理裝備、當前探險或上一趟探險
+- 最後用最近 adventure log 補上具體細節
 
-下一步應該把它變得更像對玩家說話，而不是只像工程輸出。
+目前仍保留工程可用的 JSON payload，但閱讀感受已經比較像在回答「我的寵物現在怎樣了？」。
 
 ## 現階段里程碑判讀
 
@@ -203,4 +203,4 @@ My Pet Hero 不是單純餵食型電子寵物，而是會自己生活、自己�
 - 更明確的 class identity
 - skill growth / unlocks
 - minimap / traps / 真正分歧探索
-- 舊存檔 migration
+- 更好的 image summary 與狀態卡視覺整合

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, copyFile, readdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile, readdir, access, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -497,6 +497,39 @@ export async function ensureDataDir(dataDir = DEFAULT_DATA_DIR) {
 }
 export function petFilePath(id, dataDir = DEFAULT_DATA_DIR) {
     return path.join(dataDir, `${id}.json`);
+}
+export async function listPetSaves(dataDir = DEFAULT_DATA_DIR) {
+    const resolvedDataDir = await ensureDataDir(dataDir);
+    const entries = await readdir(resolvedDataDir);
+    const pets = [];
+    for (const fileName of entries) {
+        if (!fileName.endsWith('.json'))
+            continue;
+        const filePath = path.join(resolvedDataDir, fileName);
+        const entryStat = await stat(filePath);
+        if (!entryStat.isFile())
+            continue;
+        try {
+            const raw = JSON.parse(await readFile(filePath, 'utf8'));
+            pets.push({
+                id: fileName.replace(/\.json$/i, ''),
+                filePath,
+                updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : entryStat.mtime.toISOString(),
+                version: typeof raw.version === 'number' ? raw.version : NaN,
+                name: typeof raw.name === 'string' ? raw.name : undefined,
+                species: typeof raw.species === 'string' ? raw.species : undefined
+            });
+        }
+        catch {
+            pets.push({
+                id: fileName.replace(/\.json$/i, ''),
+                filePath,
+                updatedAt: entryStat.mtime.toISOString(),
+                version: NaN
+            });
+        }
+    }
+    return pets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 export async function loadPet(id, dataDir = DEFAULT_DATA_DIR) {
     const resolvedDataDir = await ensureDataDir(dataDir);
