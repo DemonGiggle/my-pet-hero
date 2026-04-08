@@ -2,7 +2,7 @@ import { PetEvent, PetState, SimulationResult } from './types.js';
 import { SPECIES } from './species.js';
 import { bucketHours, clamp, hashToUnit, pickOne } from './utils.js';
 import { autoDungeonRun, autoRecoverNeeds } from './systems.js';
-import { applyVillageActivity } from './village.js';
+import { advanceVillageActivity, ensureVillageActivity } from './village.js';
 
 function moodLabel(mood: number): string {
   if (mood >= 85) return '雀躍';
@@ -71,9 +71,6 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
     const adventure = autoDungeonRun(pet, bucket);
     if (adventure) {
       events.push({ at: bucket, type: 'adventure', delta: {}, text: adventure.text });
-    } else if (pet.hero.dungeon.location === 'village') {
-      const activity = applyVillageActivity(pet, bucket);
-      events.push({ at: bucket, type: 'village-activity', delta: activity.effects, text: activity.detail });
     }
 
     const unit = hashToUnit(`${pet.seed}:${bucket}`);
@@ -90,6 +87,14 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
       pet.needs.mood = clamp(pet.needs.mood + 5);
       events.push(event);
     }
+  }
+
+  if (pet.hero.dungeon.location === 'village') {
+    const completedActivities = advanceVillageActivity(pet, nowIso);
+    for (const activity of completedActivities) {
+      events.push({ at: activity.endedAt ?? activity.startedAt, type: 'village-activity', delta: activity.effects, text: activity.detail });
+    }
+    ensureVillageActivity(pet, nowIso);
   }
 
   pet.lastSimulatedAt = nowIso;

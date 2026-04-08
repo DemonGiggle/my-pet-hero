@@ -4,6 +4,7 @@ import { PetState, NeedKey, VillageActivityRecord } from './types.js';
 import { clamp, hashToUnit } from './utils.js';
 
 const RECENT_ACTIVITY_LIMIT = 8;
+const VILLAGE_ACTIVITY_WINDOW_MS = 60 * 60 * 1000;
 
 type VillageActivityTemplate = {
   key: string;
@@ -67,11 +68,17 @@ function needTemplates(pet: PetState): VillageActivityTemplate[] {
   return out;
 }
 
+function villageActivityWindowStart(at: string): string {
+  const timestamp = new Date(at).getTime();
+  return new Date(Math.floor(timestamp / VILLAGE_ACTIVITY_WINDOW_MS) * VILLAGE_ACTIVITY_WINDOW_MS).toISOString();
+}
+
 function pickVillageTemplate(pet: PetState, at: string): VillageActivityTemplate {
+  const windowStart = villageActivityWindowStart(at);
   const templates = [...needTemplates(pet), ...classTemplates(pet), ...speciesTemplates(pet)];
   const scored = templates.map(template => ({
     template,
-    score: hashToUnit(`${pet.seed}:village:${template.key}:${at}`)
+    score: hashToUnit(`${pet.seed}:village:${template.key}:${windowStart}`)
       + (template.tags.includes('rest') && pet.needs.energy < 60 ? 0.2 : 0)
       + (template.tags.includes('social') ? pet.personality.sociability * 0.18 : 0)
       + (template.tags.includes('training') || template.tags.includes('stealth') || template.tags.includes('study') ? pet.personality.discipline * 0.16 : 0)
@@ -80,35 +87,74 @@ function pickVillageTemplate(pet: PetState, at: string): VillageActivityTemplate
   return scored[0].template;
 }
 
-export function applyVillageActivity(pet: PetState, at: string): VillageActivityRecord {
-  const template = pickVillageTemplate(pet, at);
-  const effects = { ...template.effects };
-  pet.needs.health = clamp(pet.needs.health + (effects.health ?? 0));
-  pet.needs.hunger = clamp(pet.needs.hunger + (effects.hunger ?? 0));
-  pet.needs.thirst = clamp(pet.needs.thirst + (effects.thirst ?? 0));
-  pet.needs.mood = clamp(pet.needs.mood + (effects.mood ?? 0));
-  pet.needs.energy = clamp(pet.needs.energy + (effects.energy ?? 0));
-  pet.needs.hygiene = clamp(pet.needs.hygiene + (effects.hygiene ?? 0));
-
-  const record: VillageActivityRecord = {
+function buildVillageActivityRecord(pet: PetState, at: string): VillageActivityRecord {
+  const startedAt = villageActivityWindowStart(at);
+  const template = pickVillageTemplate(pet, startedAt);
+  return {
     key: template.key,
     label: template.label,
     summary: template.summary,
     detail: template.detail,
-    startedAt: at,
-    endedAt: at,
-    effects,
+    startedAt,
+    effects: { ...template.effects },
     tags: template.tags
   };
+}
 
-  pet.hero.dungeon.village.currentActivity = record;
-  pet.hero.dungeon.village.lastVisitedAt = at;
+function commitVillageActivityEffects(pet: PetState, record: VillageActivityRecord): VillageActivityRecord {
+  pet.needs.health = clamp(pet.needs.health + (record.effects.health ?? 0));
+  pet.needs.hunger = clamp(pet.needs.hunger + (record.effects.hunger ?? 0));
+  pet.needs.thirst = clamp(pet.needs.thirst + (record.effects.thirst ?? 0));
+  pet.needs.mood = clamp(pet.needs.mood + (record.effects.mood ?? 0));
+  pet.needs.energy = clamp(pet.needs.energy + (record.effects.energy ?? 0));
+  pet.needs.hygiene = clamp(pet.needs.hygiene + (record.effects.hygiene ?? 0));
+
+  const endedAt = new Date(new Date(record.startedAt).getTime() + VILLAGE_ACTIVITY_WINDOW_MS).toISOString();
+  const completed = { ...record, endedAt };
   pet.hero.dungeon.village.recentActivities = [
     ...pet.hero.dungeon.village.recentActivities,
-    record
+    completed
   ].slice(-RECENT_ACTIVITY_LIMIT);
+  pet.hero.dungeon.village.lastVisitedAt = endedAt;
+  return completed;
+}
 
-  return record;
+export function ensureVillageActivity(pet: PetState, at: string): VillageActivityRecord {
+  const village = pet.hero.dungeon.village;
+  const currentWindowStart = villageActivityWindowStart(at);
+  const current = village.currentActivity;
+
+  if (!current || current.startedAt !== currentWindowStart) {
+    village.currentActivity = buildVillageActivityRecord(pet, at);
+  }
+
+  village.lastVisitedAt = at;
+  return village.currentActivity!;
+}
+
+export function advanceVillageActivity(pet: PetState, at: string): VillageActivityRecord[] {
+  const village = pet.hero.dungeon.village;
+  const completed: VillageActivityRecord[] = [];
+  const targetWindowStart = villageActivityWindowStart(at);
+
+  let current = village.currentActivity;
+  if (!current) {
+    current = buildVillageActivityRecord(pet, village.lastVisitedAt ?? at);
+  }
+
+  while (current.startedAt < targetWindowStart) {
+    completed.push(commitVillageActivityEffects(pet, current));
+    current = buildVillageActivityRecord(pet, new Date(new Date(current.startedAt).getTime() + VILLAGE_ACTIVITY_WINDOW_MS).toISOString());
+  }
+
+  village.currentActivity = current.startedAt === targetWindowStart ? current : buildVillageActivityRecord(pet, at);
+  village.lastVisitedAt = at;
+  return completed;
+}
+
+export function applyVillageActivity(pet: PetState, at: string): VillageActivityRecord {
+  advanceVillageActivity(pet, at);
+  return ensureVillageActivity(pet, at);
 }
 
 export function villageReadinessScore(pet: PetState): number {
