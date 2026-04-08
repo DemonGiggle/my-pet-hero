@@ -16,6 +16,7 @@
 - `status --report` 人類可讀近況摘要
 - 單一角色時可省略 `--id`
 - `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
+- `skills/pet/` OpenClaw skill，可把 `/pet` 註冊成真正的 Telegram / native bot command
 - `saves` / `doctor` 管理與 migration 診斷指令
 
 ## 安裝
@@ -111,6 +112,10 @@ npm run dev -- chat --input "/pet inventory"
 npm run dev -- chat --input "/pet heroes"
 npm run dev -- chat --input "/pet use asaki"
 ```
+
+如果你想讓 Telegram / OpenClaw 把 `/pet` 當成真正的原生 bot command，而不是只有文字 parser，請把 repo 內的 `skills/pet/` 安裝到 OpenClaw 可見的 skills 目錄，並保持 `commands.nativeSkills` 啟用。OpenClaw 會用 skill 名稱 `pet` 註冊 `/pet`，其餘輸入則原樣當成 skill input，再交給 `chat --input "/pet ..."` 入口處理。
+
+更完整的整合說明見 `docs/openclaw-chat.md`。
 
 支援的聊天指令：
 
