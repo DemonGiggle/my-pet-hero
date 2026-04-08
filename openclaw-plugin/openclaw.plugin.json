@@ -1,0 +1,38 @@
+{
+  "id": "my-pet-hero",
+  "name": "My Pet Hero",
+  "description": "Deterministic /pet tool dispatch for My Pet Hero.",
+  "skills": [
+    "./skills"
+  ],
+  "contracts": {
+    "tools": [
+      "my_pet_hero_pet"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "projectDir": {
+        "type": "string",
+        "minLength": 1
+      },
+      "nodeBin": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "uiHints": {
+    "projectDir": {
+      "label": "My Pet Hero project directory",
+      "help": "Optional override for the checked-out My Pet Hero repo. Defaults to the parent directory of this plugin package."
+    },
+    "nodeBin": {
+      "label": "Node executable",
+      "help": "Optional Node.js binary/path used to run dist/cli.js. Defaults to process.execPath.",
+      "advanced": true
+    }
+  }
+}

@@ -17,6 +17,7 @@
 - 單一角色時可省略 `--id`
 - `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
 - `skills/pet/` OpenClaw skill，可把 `/pet` 註冊成真正的 Telegram / native bot command
+- `openclaw-plugin/` OpenClaw plugin，提供 deterministic `my_pet_hero_pet` tool，讓 `/pet` 可用 `command-dispatch: tool` 直接執行，不經 LLM
 - `saves` / `doctor` 管理與 migration 診斷指令
 
 ## 安裝
@@ -113,7 +114,16 @@ npm run dev -- chat --input "/pet heroes"
 npm run dev -- chat --input "/pet use asaki"
 ```
 
-如果你想讓 Telegram / OpenClaw 把 `/pet` 當成真正的原生 bot command，而不是只有文字 parser，請把 repo 內的 `skills/pet/` 安裝到 OpenClaw 可見的 skills 目錄，並保持 `commands.nativeSkills` 啟用。OpenClaw 會用 skill 名稱 `pet` 註冊 `/pet`，其餘輸入則原樣當成 skill input，再交給 `chat --input "/pet ..."` 入口處理。
+如果你只是要把 `/pet` 註冊成真正的原生 bot command，最簡單的做法是安裝 repo 內的 `openclaw-plugin/`。它會同時提供 `pet` skill 與 `my_pet_hero_pet` tool，並用 OpenClaw 的 `command-dispatch: tool` 讓 `/pet` 直接 deterministic 執行，不經 LLM。
+
+```bash
+npm run build
+openclaw plugins install ./openclaw-plugin
+```
+
+重啟 gateway 後，保持 `commands.nativeSkills` 啟用，OpenClaw 就會把 `pet` skill 註冊成 `/pet`，其餘輸入則直接交給 `my_pet_hero_pet` tool，再由它呼叫 `chat --input "/pet ..."`。
+
+如果你只想沿用舊的 skill-only 路線，也可以把 repo 內的 `skills/pet/` 安裝到 OpenClaw 可見的 skills 目錄。不過那條路徑是 skill prompt routing，不是新的 deterministic tool dispatch。
 
 更完整的整合說明見 `docs/openclaw-chat.md`。
 

@@ -1,0 +1,20 @@
+{
+  "name": "openclaw-my-pet-hero-plugin",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for deterministic /pet command dispatch to My Pet Hero.",
+  "type": "module",
+  "private": true,
+  "main": "index.js",
+  "keywords": [
+    "openclaw-plugin",
+    "my-pet-hero",
+    "telegram",
+    "pet"
+  ],
+  "peerDependencies": {
+    "openclaw": ">=0.0.0"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41"
+  }
+}
