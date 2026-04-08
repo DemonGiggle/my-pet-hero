@@ -18,10 +18,10 @@ OpenClaw native skill commands can dispatch directly to a tool when the skill fr
 - `command-tool: my_pet_hero_pet`
 - `command-arg-mode: raw`
 
-The `openclaw-plugin/` package ships exactly that combination:
+The `openclaw-plugin/` package ships the tool portion of that combination, and the skill can come from either the plugin bundle or the workspace mirror:
 
-1. a skill directory named `openclaw-plugin/skills/pet/`
-2. `SKILL.md` frontmatter with `name: pet`
+1. a skill directory named `openclaw-plugin/skills/pet/` or `~/.openclaw/workspace/skills/pet/`
+2. `SKILL.md` frontmatter with `name: pet`, `command-dispatch: tool`, `command-tool: my_pet_hero_pet`, and `command-arg-mode: raw`
 3. a registered tool named `my_pet_hero_pet`
 4. OpenClaw command registration enabled (`commands.native` and `commands.nativeSkills`, or the Telegram-specific overrides left at `auto`/`true`)
 
@@ -51,9 +51,9 @@ npm run build
 openclaw plugins install ./openclaw-plugin
 ```
 
-This gives OpenClaw both the tool and the skill it needs for deterministic `/pet` dispatch.
+This gives OpenClaw the deterministic tool. The matching `/pet` skill can come from the bundled plugin skill or the workspace `skills/pet/` mirror.
 
-Legacy skill-only install is still possible by copying or symlinking `skills/pet/` into an OpenClaw-visible skills directory, but that is not the deterministic path.
+If you keep a workspace-visible `skills/pet/`, make sure it uses the deterministic tool-dispatch frontmatter. Avoid the old skill-only prompt route.
 
 Then make sure native skill commands are enabled. The default OpenClaw config is usually already enough:
 

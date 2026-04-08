@@ -68,6 +68,124 @@ function formatCardSummary(result) {
             : `準備度 ${readiness}`;
     return `${location} ${urgency}`;
 }
+function describeCurrentScene(pet) {
+    const activity = pet.hero.dungeon.village.currentActivity;
+    if (pet.hero.dungeon.location === 'village') {
+        if (activity)
+            return `${pet.name} 現在待在 ${pet.hero.dungeon.village.name}，正${activity.summary}。`;
+        return `${pet.name} 現在待在 ${pet.hero.dungeon.village.name}，暫時按兵不動。`;
+    }
+    if (pet.hero.dungeon.currentExpedition) {
+        return `${pet.name} 人還在 ${pet.hero.dungeon.currentExpedition.dungeonName}，這趟已推進 ${pet.hero.dungeon.currentExpedition.roomsCleared}/${pet.hero.dungeon.currentExpedition.totalRooms} 房。`;
+    }
+    return `${pet.name} 正在迷宮之中摸索前路。`;
+}
+function summarizeRecentStoryBeats(pet) {
+    const beats = [];
+    const adventures = pet.hero.adventureLog.slice(-3);
+    const currentExpedition = pet.hero.dungeon.currentExpedition;
+    const villageActivities = pet.hero.dungeon.village.recentActivities.slice(-2);
+    if (currentExpedition) {
+        beats.push(`${currentExpedition.dungeonName} 這趟還沒結束，最深處的壓力仍掛在身上。`);
+    }
+    for (const item of adventures) {
+        if (item.trap?.triggered) {
+            beats.push(`途中還踩中了 ${item.trap.kind}，讓狀態被硬生生磨掉一截。`);
+            continue;
+        }
+        if (item.rewards?.some((reward) => reward.includes('升到 Lv.'))) {
+            beats.push(`先前一戰替他贏來了成長，等級也往上踏了一階。`);
+            continue;
+        }
+        if (item.rewards?.some((reward) => reward.includes('換上了新防具')) || item.rewards?.some((reward) => reward.includes('掉落：'))) {
+            beats.push(`在廢墟深處撈到的新裝備，多少替他把底氣補回來一些。`);
+            continue;
+        }
+        if (item.outcome === 'win') {
+            beats.push(`前幾個房間並沒有讓他失手，腳步算是穩穩踏過去了。`);
+        }
+    }
+    if (beats.length < 2) {
+        for (const activity of villageActivities) {
+            beats.push(`${pet.name} 回到村裡後沒有閒著，還在用「${activity.label}」慢慢把節奏收回來。`);
+            if (beats.length >= 3)
+                break;
+        }
+    }
+    return Array.from(new Set(beats)).slice(0, 3);
+}
+function summarizeRisk(pet) {
+    const readinessScore = villageReadinessScore(pet);
+    const readinessLabel = villageReadinessLabel(readinessScore);
+    const inExpedition = Boolean(pet.hero.dungeon.currentExpedition);
+    if (pet.needs.health <= 25) {
+        return {
+            riskSummary: '血線很薄，再往前就不是試探，是拿命換答案。',
+            momentum: inExpedition ? '探險仍懸著，但氣血已經見底。' : '人雖回到村裡，傷勢卻還沒真正補平。',
+            recommendedFocus: '強調危險與暫避鋒芒。'
+        };
+    }
+    if (pet.needs.energy <= 35) {
+        return {
+            riskSummary: '精神有些散，再硬撐只會把判斷磨鈍。',
+            momentum: '節奏還在，但需要喘口氣才能把手感接回來。',
+            recommendedFocus: '強調休整而不是衝刺。'
+        };
+    }
+    if (readinessScore < 60) {
+        return {
+            riskSummary: `準備度只有 ${readinessLabel}，勉強能動，還談不上從容。`,
+            momentum: '局勢沒有崩，但還差一口完整的出發氣。',
+            recommendedFocus: '強調整補與蓄勢。'
+        };
+    }
+    if (inExpedition) {
+        return {
+            riskSummary: '狀態還能撐，但接下來每一步都得看清代價。',
+            momentum: '局勢仍在往前滾動，眼下算是有機會把這趟做完。',
+            recommendedFocus: '強調進退判斷與探險壓力。'
+        };
+    }
+    return {
+        riskSummary: '眼下沒有立刻失控的危險，但也不是該漫不經心的時候。',
+        momentum: '整體節奏還算穩，像是在替下一次出發慢慢蓄光。',
+        recommendedFocus: '強調穩定與下一步的可能。'
+    };
+}
+function buildNarrationSeed(result) {
+    const pet = result.pet;
+    const risk = summarizeRisk(pet);
+    return {
+        scene: describeCurrentScene(pet),
+        storyArc: summarizeRecentStoryBeats(pet).join(' '),
+        danger: risk.riskSummary,
+        momentum: risk.momentum,
+        recommendedFocus: risk.recommendedFocus
+    };
+}
+function buildStoryBeats(result) {
+    const pet = result.pet;
+    const beats = [];
+    beats.push(describeCurrentScene(pet));
+    beats.push(...summarizeRecentStoryBeats(pet));
+    beats.push(summarizeRisk(pet).riskSummary);
+    return Array.from(new Set(beats)).slice(0, 5);
+}
+function buildKeyStats(result) {
+    const pet = result.pet;
+    const readinessScore = villageReadinessScore(pet);
+    return {
+        health: Number(pet.needs.health.toFixed(1)),
+        energy: Number(pet.needs.energy.toFixed(1)),
+        hunger: Number(pet.needs.hunger.toFixed(1)),
+        thirst: Number(pet.needs.thirst.toFixed(1)),
+        readiness: readinessScore,
+        readinessLabel: villageReadinessLabel(readinessScore),
+        gold: pet.hero.gold,
+        exp: pet.hero.exp,
+        expToNext: pet.hero.expToNext
+    };
+}
 function formatExpeditionSummary(expedition) {
     const title = expedition.completed
         ? `【探險結算】${expedition.dungeonName} / 第 ${expedition.floor} 層`
@@ -227,6 +345,10 @@ async function getStatusPayload(idArg, includeReport = false) {
         summary: result.summary,
         headline: formatHeadline(result),
         quickStatus: `${formatNeedSummary(result.pet)}；準備度 ${villageReadinessLabel(villageReadinessScore(result.pet))}`,
+        narrationSeed: buildNarrationSeed(result),
+        storyBeats: buildStoryBeats(result),
+        riskSummary: summarizeRisk(result.pet).riskSummary,
+        keyStats: buildKeyStats(result),
         mood: result.moodLabel,
         stage: result.stageLabel,
         imagePath: rendered.outputPath,

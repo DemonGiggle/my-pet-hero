@@ -11,7 +11,8 @@
     "render": "tsx src/cli.ts status",
     "create": "tsx src/cli.ts create",
     "check:migrations": "tsx scripts/check-migrations.ts",
-    "validate:chat": "bash scripts/validate-chat.sh"
+    "validate:chat": "bash scripts/validate-chat.sh",
+    "validate:openclaw": "node scripts/validate-openclaw-plugin.mjs"
   },
   "keywords": [],
   "author": "",

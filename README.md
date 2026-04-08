@@ -17,7 +17,7 @@
 - 單一角色時可省略 `--id`
 - `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
 - `/pet` 專用的可重現圖文輸出 contract，讓 wrapper 可用 raw data 包裝出短篇奇幻敘事並附圖
-- `skills/pet/` OpenClaw skill，可把 `/pet` 註冊成真正的 Telegram / native bot command
+- `skills/pet/` 與 workspace `skills/pet/` 都可作為 OpenClaw `/pet` skill 入口
 - `openclaw-plugin/` OpenClaw plugin，提供 deterministic `my_pet_hero_pet` tool，讓 `/pet` 可用 `command-dispatch: tool` 直接執行，不經 LLM
 - `saves` / `doctor` 管理與 migration 診斷指令
 
@@ -115,7 +115,7 @@ npm run dev -- chat --input "/pet heroes"
 npm run dev -- chat --input "/pet use asaki"
 ```
 
-如果你只是要把 `/pet` 註冊成真正的原生 bot command，最簡單的做法是安裝 repo 內的 `openclaw-plugin/`。它會同時提供 `pet` skill 與 `my_pet_hero_pet` tool，並用 OpenClaw 的 `command-dispatch: tool` 讓 `/pet` 直接 deterministic 執行，不經 LLM。
+如果你只是要把 `/pet` 註冊成真正的原生 bot command，最簡單的做法是安裝 repo 內的 `openclaw-plugin/`。它會提供 `my_pet_hero_pet` tool，而 repo 內的 `skills/pet/` 與 workspace `skills/pet/` 都能用 `command-dispatch: tool` 把 `/pet` 直接 deterministic 執行，不經 LLM。
 
 ```bash
 npm run build
@@ -124,7 +124,7 @@ openclaw plugins install ./openclaw-plugin
 
 重啟 gateway 後，保持 `commands.nativeSkills` 啟用，OpenClaw 就會把 `pet` skill 註冊成 `/pet`，其餘輸入則直接交給 `my_pet_hero_pet` tool，再由它呼叫 `chat --input "/pet ..."`。
 
-如果你只想沿用舊的 skill-only 路線，也可以把 repo 內的 `skills/pet/` 安裝到 OpenClaw 可見的 skills 目錄。不過那條路徑是 skill prompt routing，不是新的 deterministic tool dispatch。
+現在建議不要再走舊的 skill-only prompt routing。若要從 workspace 暴露 `/pet`，請保留 workspace `skills/pet/`，並確保 `my_pet_hero_pet` tool 已由 plugin 提供。
 
 更完整的整合說明見 `docs/openclaw-chat.md`。
 
@@ -257,6 +257,7 @@ npm run dev -- doctor --id asaki
 - `npm run build` 可通過
 - `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` / `chat` CLI 入口存在
 - `npm run validate:chat` 可驗證 `/pet status`、`/pet report`、`/pet inventory`、`/pet use`、`/pet heroes`、`/pet feed`
+- `npm run validate:openclaw` 可用 mock OpenClaw plugin registration 驗證 `my_pet_hero_pet` 工具會走到 `chat --input "/pet ..."`，並回傳敘事文字與圖片
 - 新版存檔可正確輸出 expedition / equipment 相關欄位
 - cadence 設定可由 `my-pet-hero.config.json` 或環境變數控制，`doctor` 可看到生效值
 
