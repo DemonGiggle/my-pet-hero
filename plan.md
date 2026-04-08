@@ -132,21 +132,23 @@
 目標：把迷宮從能跑升級成更像在探險。
 
 ### Scope
-- [ ] ASCII minimap
-- [ ] bitmap minimap / status card integration（若值得做）
-- [ ] traps
-- [ ] branching routes 強化
-- [ ] dungeon modifiers
-- [ ] exclusive monsters / drops
-- [ ] secret / rare rooms（可選）
+- [x] ASCII minimap
+- [-] bitmap minimap / status card integration（本輪不做，避免做半套）
+- [x] traps
+- [x] branching routes 強化
+- [x] dungeon modifiers
+- [x] exclusive monsters / drops
+- [-] secret / rare rooms（延後）
 
 ### Notes
-- 目前 room graph 已有 exits 與少量 branch metadata
-- 實際推進仍是依房間順序前進，還不是正式分歧導航
+- 迷宮現在會輸出 ASCII minimap，並把 minimap / routeChoice / trap 結果放進 runState 與 report
+- 推進已不再只是固定 next index，會依 exits、未探索房與支線偏好選路
+- 每個 template 會帶一個 dungeon modifier，開始影響陷阱、收益或路線體感
+- bitmap minimap/status card integration 先誠實延後，等圖面需求更清楚再做
 
 ### Exit Criteria
-- status / report 可看到更明確的迷宮結構資訊
-- 不同迷宮不只換皮，玩法差異開始出現
+- [x] status / report 可看到更明確的迷宮結構資訊
+- [x] 不同迷宮不只換皮，玩法差異開始出現
 
 ---
 

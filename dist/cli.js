@@ -9,6 +9,7 @@ import { runCombat, ENEMIES } from './combat.js';
 import { SKILLS } from './skills.js';
 import { autoDungeonRun } from './systems.js';
 import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
+import { renderDungeonMinimap } from './dungeons.js';
 function getArg(name) {
     const index = process.argv.indexOf(`--${name}`);
     return index >= 0 ? process.argv[index + 1] : undefined;
@@ -78,6 +79,8 @@ function formatExpeditionSummary(expedition) {
             const roomLabel = item.roomName ?? item.roomType ?? 'unknown';
             lines.push(`• ${roomLabel}，${item.outcome}，EXP +${item.expGained}，Gold +${item.goldGained}`);
             lines.push(`  ${item.text}`);
+            if (item.runState?.minimap)
+                lines.push(`  地圖：${item.runState.minimap}`);
         }
     }
     return lines;
@@ -90,6 +93,12 @@ function formatAdventureReport(result) {
         `【身體狀態】${formatNeedSummary(pet)}`,
         `【裝備】${formatEquipmentSummary(pet).join(' / ')}`
     ];
+    if (pet.hero.dungeon.currentDungeon) {
+        lines.push(`【迷宮地圖】${renderDungeonMinimap(pet.hero.dungeon.currentDungeon)}`);
+        if (pet.hero.dungeon.currentDungeon.modifiers.length > 0) {
+            lines.push(`【本層異常】${pet.hero.dungeon.currentDungeon.modifiers.map(modifier => `${modifier.label}(${modifier.description})`).join(' / ')}`);
+        }
+    }
     if (pet.hero.dungeon.currentExpedition) {
         lines.push(`【正在做什麼】剛好人在 ${pet.hero.dungeon.currentExpedition.dungeonName}，目前清了 ${pet.hero.dungeon.currentExpedition.roomsCleared}/${pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
         lines.push(...formatExpeditionSummary(pet.hero.dungeon.currentExpedition).map(line => `  ${line}`));
@@ -113,6 +122,12 @@ function formatAdventureReport(result) {
         lines.push(`  ${item.text}`);
         if (item.roomSummary)
             lines.push(`  房間摘要：${item.roomSummary}`);
+        if (item.runState?.minimap)
+            lines.push(`  迷你地圖：${item.runState.minimap}`);
+        if (item.trap)
+            lines.push(`  陷阱：${item.trap.effect}`);
+        if (item.routeChoice)
+            lines.push(`  路線：${item.routeChoice.reason}`);
         if (item.rewards && item.rewards.length > 0)
             lines.push(`  額外收穫：${item.rewards.join('、')}`);
         if (item.combat) {
@@ -168,7 +183,9 @@ async function printStatus(idArg) {
                 discoveredRoomIds: currentDungeon.discoveredRoomIds,
                 clearedRoomIds: currentDungeon.clearedRoomIds,
                 rooms: currentDungeon.rooms,
-                currentRoom
+                currentRoom,
+                minimap: renderDungeonMinimap(currentDungeon),
+                modifiers: currentDungeon.modifiers
             }
             : null,
         summary: result.summary,
@@ -270,7 +287,7 @@ async function printDoctor(idArg) {
         saveCount: saves.length,
         defaultHeroId: saves.length === 1 ? saves[0].id : null,
         migrationPolicy: {
-            supportedFrom: [2, 3, 4, 5, 6],
+            supportedFrom: [2, 3, 4, 5, 6, 7],
             target: CURRENT_SAVE_VERSION,
             behavior: 'loadPet 會自動升級舊存檔、備份原始 JSON、再覆寫成最新 schema。',
             rejects: '版本小於 2 或高於目前版本的存檔會拒絕載入。'
@@ -330,7 +347,12 @@ async function dungeonPreview(idArg) {
         triggered: logs.length > 0,
         before,
         logs,
-        currentDungeon: previewPet.hero.dungeon.currentDungeon ?? null,
+        currentDungeon: previewPet.hero.dungeon.currentDungeon
+            ? {
+                ...previewPet.hero.dungeon.currentDungeon,
+                minimap: renderDungeonMinimap(previewPet.hero.dungeon.currentDungeon)
+            }
+            : null,
         currentExpedition: previewPet.hero.dungeon.currentExpedition ?? null,
         expeditionHistory: previewPet.hero.dungeon.expeditionHistory,
         after: {

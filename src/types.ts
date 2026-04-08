@@ -33,6 +33,9 @@ export type SkillEffectKind = 'damage' | 'heal' | 'shield' | 'buff';
 export type DungeonRoomType = 'entrance' | 'battle' | 'elite' | 'treasure' | 'event' | 'rest' | 'shop' | 'boss';
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory';
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic';
+export type DungeonModifierEffect = 'trap-pressure' | 'treasure-rich' | 'route-fog' | 'steady-rest' | 'elite-surge';
+export type RoomTag = 'main-path' | 'branch' | 'dead-end' | 'secret';
+export type TrapKind = 'spike' | 'poison-dart' | 'arcane-surge' | 'ember-floor' | 'bone-snare';
 
 export interface Needs {
   health: number;
@@ -177,6 +180,7 @@ export interface EquipmentItem {
   heroClass: HeroClass;
   bonuses: EquipmentBonuses;
   source?: string;
+  exclusiveTo?: string;
 }
 
 export interface EquipmentState {
@@ -245,13 +249,33 @@ export interface AdventureLog {
     hunger?: number;
     thirst?: number;
   };
+  trap?: {
+    kind: TrapKind;
+    detected: boolean;
+    triggered: boolean;
+    effect: string;
+  };
+  routeChoice?: {
+    fromRoomId: string;
+    toRoomId: string;
+    reason: string;
+  };
   runState?: {
     roomIndex: number;
     roomCount: number;
     clearedRoomIds: string[];
     discoveredRoomIds: string[];
     completedDungeon: boolean;
+    pathTakenRoomIds?: string[];
+    minimap?: string;
   };
+}
+
+export interface DungeonTrap {
+  kind: TrapKind;
+  severity: number;
+  detectDifficulty: number;
+  disarmed: boolean;
 }
 
 export interface DungeonRoom {
@@ -259,9 +283,20 @@ export interface DungeonRoom {
   type: DungeonRoomType;
   name: string;
   depth: number;
+  x: number;
+  y: number;
   enemies: string[];
   cleared: boolean;
   exits: string[];
+  tags?: RoomTag[];
+  trap?: DungeonTrap;
+}
+
+export interface DungeonModifier {
+  key: string;
+  label: string;
+  description: string;
+  effect: DungeonModifierEffect;
 }
 
 export interface DungeonTemplate {
@@ -276,9 +311,14 @@ export interface DungeonTemplate {
   enemyKeys: string[];
   eliteEnemyKeys: string[];
   bossEnemyKeys: string[];
+  exclusiveEnemyKeys?: string[];
+  exclusiveDropPrefixes?: string[];
   eventBias: number;
   treasureBias: number;
   restBias: number;
+  branchChance?: number;
+  trapBias?: number;
+  modifiers?: DungeonModifier[];
   description: string;
 }
 
@@ -292,8 +332,10 @@ export interface DungeonInstance {
   currentRoomId: string;
   discoveredRoomIds: string[];
   clearedRoomIds: string[];
+  pathTakenRoomIds: string[];
   seed: string;
   description: string;
+  modifiers: DungeonModifier[];
 }
 
 export interface ExpeditionSummary {

@@ -1,5 +1,6 @@
 import { HeroClass, PetState } from './types.js';
 import { clamp, hashToUnit, pickOne } from './utils.js';
+import { DUNGEON_TEMPLATES } from './dungeons.js';
 
 export const EQUIPMENT_SLOTS = ['weapon', 'armor', 'accessory'] as const;
 
@@ -131,7 +132,7 @@ export function listInventory(pet: PetState): string[] {
     .map((item) => `${item.id} | ${describeItem(item)}${pet.hero.equipment.equipped[item.slot]?.id === item.id ? ' (已裝備)' : ''}`);
 }
 
-export function maybeGenerateLoot(pet: PetState, floor: number, at: string, roomType?: string) {
+export function maybeGenerateLoot(pet: PetState, floor: number, at: string, roomType?: string, dungeonTemplateKey?: string) {
   const chanceBase = roomType === 'boss' ? 0.95 : roomType === 'elite' ? 0.68 : roomType === 'treasure' ? 0.76 : 0.42;
   if (hashToUnit(`${pet.seed}:loot-drop:${at}:${floor}:${roomType ?? 'room'}`) > chanceBase) return null;
 
@@ -140,9 +141,11 @@ export function maybeGenerateLoot(pet: PetState, floor: number, at: string, room
   const mult = rarityMultiplier(rarity);
   const heroClass = pet.hero.classProgress.current;
   const baseValue = Math.max(1, Math.round((floor + pet.hero.level) * mult));
+  const template = DUNGEON_TEMPLATES.find(candidate => candidate.key === dungeonTemplateKey);
 
   const names = slot === 'weapon' ? CLASS_WEAPONS[heroClass] : slot === 'armor' ? CLASS_ARMORS[heroClass] : CLASS_ACCESSORIES[heroClass];
-  const prefix = pickOne([...SLOT_PREFIX[slot]], hashToUnit(`${pet.seed}:loot-prefix:${at}:${slot}`));
+  const themedPrefixes = template?.exclusiveDropPrefixes?.length ? [...template.exclusiveDropPrefixes, ...SLOT_PREFIX[slot]] : [...SLOT_PREFIX[slot]];
+  const prefix = pickOne(themedPrefixes, hashToUnit(`${pet.seed}:loot-prefix:${at}:${slot}`));
   const noun = pickOne([...names], hashToUnit(`${pet.seed}:loot-name:${at}:${slot}`));
 
   const bonuses = slot === 'weapon'
@@ -165,7 +168,8 @@ export function maybeGenerateLoot(pet: PetState, floor: number, at: string, room
     itemLevel: floor,
     heroClass,
     bonuses,
-    source: `${roomType ?? 'room'} floor ${floor}`
+    source: `${roomType ?? 'room'} floor ${floor}`,
+    exclusiveTo: template?.key
   };
 }
 

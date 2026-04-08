@@ -9,7 +9,7 @@
 - 不需要背景 daemon
 - 以單一存檔保存角色狀態，且預設寫到 repo 外的使用者狀態目錄
 - 種族、職業、屬性、技能、戰鬥
-- 程序化迷宮 instance 與 room flow
+- 程序化迷宮 instance、branching route、hazards 與 room flow
 - 村莊 → 地下城 → 回村的 expedition loop
 - 裝備、掉寶、背包、自動換裝、手動 equip / sell
 - 狀態 PNG 輸出
@@ -84,6 +84,12 @@ npm run dev -- combat-preview --id asaki --floor 3
 ```bash
 npm run dev -- dungeon-preview --id asaki --repeat 3 --force-ready
 ```
+
+現在 preview / status 也會帶出：
+
+- `currentDungeon.minimap` ASCII 迷你地圖
+- `currentDungeon.modifiers` 目前這層的 modifier
+- `logs[].trap` / `logs[].routeChoice` / `logs[].runState.minimap`
 
 ### 日常互動
 
@@ -184,8 +190,9 @@ npm run dev -- doctor --id asaki
 - v2~v6 舊存檔會在載入時自動 migration 到 v7，並先備份原始 JSON
 - `doctor` 目前提供的是 migration 策略與存檔概況，不是完整 repair tool
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
-- room graph 目前已帶有少量 branching 資訊，但實際推進仍是線性前進到下一房
-- 還沒有 status effects、進階職業、技能成長、陷阱、商店互動
+- bitmap minimap / status card integration 還沒做，刻意先不硬塞進這輪
+- secret / rare rooms 還沒做
+- 還沒有 status effects、進階職業、技能成長、商店互動
 
 ## 文件
 

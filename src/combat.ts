@@ -91,6 +91,54 @@ export const ENEMIES: EnemyTemplate[] = [
     expReward: 20,
     goldReward: 15,
     abilities: ['fear']
+  },
+  {
+    key: 'grave-wisp',
+    label: '墓燼幽火',
+    floorRange: [2, 7],
+    damageTypeBias: 'magic',
+    baseHealth: 26,
+    baseAttack: 14,
+    baseDefense: 4,
+    baseAccuracy: 0.84,
+    baseEvasion: 0.12,
+    baseCrit: 0.08,
+    aggression: 0.78,
+    expReward: 16,
+    goldReward: 11,
+    abilities: ['curse-flare']
+  },
+  {
+    key: 'mirror-sentinel',
+    label: '鏡面守兵',
+    floorRange: [3, 9],
+    damageTypeBias: 'magic',
+    baseHealth: 36,
+    baseAttack: 15,
+    baseDefense: 9,
+    baseAccuracy: 0.8,
+    baseEvasion: 0.07,
+    baseCrit: 0.07,
+    aggression: 0.7,
+    expReward: 18,
+    goldReward: 12,
+    abilities: ['reflective-shell']
+  },
+  {
+    key: 'ash-salamander',
+    label: '灰燼蠑螈',
+    floorRange: [4, 10],
+    damageTypeBias: 'physical',
+    baseHealth: 38,
+    baseAttack: 17,
+    baseDefense: 8,
+    baseAccuracy: 0.83,
+    baseEvasion: 0.11,
+    baseCrit: 0.09,
+    aggression: 0.86,
+    expReward: 19,
+    goldReward: 13,
+    abilities: ['ember-rush']
   }
 ];
 
@@ -277,8 +325,10 @@ function useSkill(
   };
 }
 
-export function runCombat(pet: PetState, floor: number, at: string): CombatResult {
-  const enemy = chooseEnemy(floor, `${pet.seed}:enemy:${at}:${floor}`);
+export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyKey?: string): CombatResult {
+  const enemy = forcedEnemyKey
+    ? ENEMIES.find(candidate => candidate.key === forcedEnemyKey) ?? chooseEnemy(floor, `${pet.seed}:enemy:${at}:${floor}`)
+    : chooseEnemy(floor, `${pet.seed}:enemy:${at}:${floor}`);
   const hero = buildHeroSnapshot(pet);
   const enemyState = buildEnemySnapshot(enemy, floor);
   const turns: CombatTurnLog[] = [];

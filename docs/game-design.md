@@ -134,6 +134,9 @@ My Pet Hero 不是單純餵食型電子寵物，而是會自己生活、自己�
 - `event`: 非純戰鬥房，給小獎勵或狀態波動
 - `rest`: 回復房，補 health / energy / mood
 
+現在每層還會多一個 modifier，開始影響陷阱密度、支線價值、休息點強度或 elite 壓力。
+另外房間可能附帶 trap，探索記錄會留下是否踩中、是否提早發現。
+
 目前房型差異已經直接影響：
 
 - EXP / Gold
@@ -202,5 +205,5 @@ My Pet Hero 不是單純餵食型電子寵物，而是會自己生活、自己�
 - 狀態效果與 enemy special abilities
 - 更明確的 class identity
 - skill growth / unlocks
-- minimap / traps / 真正分歧探索
+- secret / rare rooms
 - 更好的 image summary 與狀態卡視覺整合

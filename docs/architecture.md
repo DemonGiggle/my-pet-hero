@@ -56,8 +56,8 @@ My Pet Hero 採用 query-time simulation：
 - 迷宮模板資料
 - procedural dungeon instance 生成
 - room type、room label、enemy pool 決定
-- `currentRoomId` / `discoveredRoomIds` / `clearedRoomIds`
-- 目前保留 exits 與少量 branching metadata
+- `currentRoomId` / `discoveredRoomIds` / `clearedRoomIds` / `pathTakenRoomIds`
+- branching route 選路、trap metadata、modifier 與 ASCII minimap
 
 ### `src/combat.ts`
 - 敵人資料
@@ -195,7 +195,7 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - 新建角色可正常 `status`
 - `inventory` / `combat-preview` / `dungeon-preview` CLI 存在且可輸出當前 schema 資料
 
-另外要注意：目前 migration 支援 v2~v6。比 v2 更舊，或未來比 v7 更新的存檔，會明確拒絕載入。
+另外要注意：目前 migration 支援 v2~v7。比 v2 更舊，或未來比 v8 更新的存檔，會明確拒絕載入。
 
 ## Save migration policy
 
@@ -207,7 +207,7 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 
 ## Next technical directions
 
-- map UX / minimap
+- bitmap map/status-card integration
 - status effects system
 - enemy abilities 深化
 - skill unlock progression

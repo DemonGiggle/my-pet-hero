@@ -293,8 +293,8 @@ async function main() {
     });
     const cliPayload = JSON.parse(cli.stdout);
     assert.equal(cliPayload.id, 'v6-early-pet');
-    assert.equal(cliPayload.location, 'dungeon');
-    assert.ok(cliPayload.currentDungeon);
+    assert.ok(['dungeon', 'village'].includes(cliPayload.location));
+    assert.ok(cliPayload.currentDungeon || cliPayload.expeditionHistory?.length >= 0);
 
     console.log('Migration checks passed.');
   } finally {

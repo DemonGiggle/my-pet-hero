@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
-export const CURRENT_SAVE_VERSION = 7;
+export const CURRENT_SAVE_VERSION = 8;
 const needsSchema = z.object({
     health: z.number(),
     hunger: z.number(),
@@ -53,7 +53,8 @@ const equipmentItemSchema = z.object({
     itemLevel: z.number(),
     heroClass: heroClassSchema,
     bonuses: equipmentBonusesSchema,
-    source: z.string().optional()
+    source: z.string().optional(),
+    exclusiveTo: z.string().optional()
 });
 const skillUseSchema = z.object({
     round: z.number(),
@@ -118,14 +119,30 @@ const combatResultSchema = z.object({
     moodDelta: z.number(),
     text: z.string()
 });
+const dungeonTrapSchema = z.object({
+    kind: z.enum(['spike', 'poison-dart', 'arcane-surge', 'ember-floor', 'bone-snare']),
+    severity: z.number(),
+    detectDifficulty: z.number(),
+    disarmed: z.boolean().default(false)
+});
+const dungeonModifierSchema = z.object({
+    key: z.string(),
+    label: z.string(),
+    description: z.string(),
+    effect: z.enum(['trap-pressure', 'treasure-rich', 'route-fog', 'steady-rest', 'elite-surge'])
+});
 const dungeonRoomSchema = z.object({
     id: z.string(),
     type: z.enum(['entrance', 'battle', 'elite', 'treasure', 'event', 'rest', 'shop', 'boss']),
     name: z.string(),
     depth: z.number(),
+    x: z.number().default(0),
+    y: z.number().default(0),
     enemies: z.array(z.string()).default([]),
     cleared: z.boolean().default(false),
-    exits: z.array(z.string()).default([])
+    exits: z.array(z.string()).default([]),
+    tags: z.array(z.enum(['main-path', 'branch', 'dead-end', 'secret'])).optional(),
+    trap: dungeonTrapSchema.optional()
 });
 const dungeonInstanceSchema = z.object({
     id: z.string(),
@@ -137,8 +154,10 @@ const dungeonInstanceSchema = z.object({
     currentRoomId: z.string(),
     discoveredRoomIds: z.array(z.string()).default([]),
     clearedRoomIds: z.array(z.string()).default([]),
+    pathTakenRoomIds: z.array(z.string()).default([]),
     seed: z.string(),
-    description: z.string().default('')
+    description: z.string().default(''),
+    modifiers: z.array(dungeonModifierSchema).default([])
 });
 const petStateSchema = z.object({
     version: z.number(),
@@ -250,12 +269,25 @@ const petStateSchema = z.object({
                 hunger: z.number().optional(),
                 thirst: z.number().optional()
             }).optional(),
+            trap: z.object({
+                kind: z.enum(['spike', 'poison-dart', 'arcane-surge', 'ember-floor', 'bone-snare']),
+                detected: z.boolean(),
+                triggered: z.boolean(),
+                effect: z.string()
+            }).optional(),
+            routeChoice: z.object({
+                fromRoomId: z.string(),
+                toRoomId: z.string(),
+                reason: z.string()
+            }).optional(),
             runState: z.object({
                 roomIndex: z.number(),
                 roomCount: z.number(),
                 clearedRoomIds: z.array(z.string()),
                 discoveredRoomIds: z.array(z.string()),
-                completedDungeon: z.boolean()
+                completedDungeon: z.boolean(),
+                pathTakenRoomIds: z.array(z.string()).optional(),
+                minimap: z.string().optional()
             }).optional()
         }))
     }),
@@ -437,6 +469,67 @@ function migrateSaveData(raw) {
             hero.dungeon = dungeon;
             migrated.hero = hero;
             migrated.version = 7;
+            changed = true;
+            continue;
+        }
+        if (currentVersion === 7) {
+            const hero = isRecord(migrated.hero) ? migrated.hero : {};
+            const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
+            const currentDungeon = isRecord(dungeon.currentDungeon) ? dungeon.currentDungeon : undefined;
+            if (currentDungeon) {
+                currentDungeon.pathTakenRoomIds = Array.isArray(currentDungeon.pathTakenRoomIds)
+                    ? currentDungeon.pathTakenRoomIds
+                    : [typeof currentDungeon.currentRoomId === 'string' ? currentDungeon.currentRoomId : 'room-1'];
+                currentDungeon.modifiers = Array.isArray(currentDungeon.modifiers) ? currentDungeon.modifiers : [];
+                currentDungeon.rooms = Array.isArray(currentDungeon.rooms)
+                    ? currentDungeon.rooms.map(room => isRecord(room)
+                        ? {
+                            ...room,
+                            x: typeof room.x === 'number' ? room.x : 0,
+                            y: typeof room.y === 'number' ? room.y : 0,
+                            tags: Array.isArray(room.tags) ? room.tags : undefined,
+                            trap: isRecord(room.trap) ? room.trap : undefined
+                        }
+                        : room)
+                    : [];
+            }
+            const normalizeAdventure = (entry) => isRecord(entry)
+                ? {
+                    ...entry,
+                    trap: isRecord(entry.trap) ? entry.trap : undefined,
+                    routeChoice: isRecord(entry.routeChoice) ? entry.routeChoice : undefined,
+                    runState: isRecord(entry.runState)
+                        ? {
+                            ...entry.runState,
+                            pathTakenRoomIds: Array.isArray(entry.runState.pathTakenRoomIds) ? entry.runState.pathTakenRoomIds : undefined,
+                            minimap: typeof entry.runState.minimap === 'string' ? entry.runState.minimap : undefined
+                        }
+                        : entry.runState
+                }
+                : entry;
+            hero.equipment = isRecord(hero.equipment)
+                ? {
+                    ...hero.equipment,
+                    inventory: Array.isArray(hero.equipment.inventory)
+                        ? hero.equipment.inventory.map(item => isRecord(item) ? { ...item, exclusiveTo: typeof item.exclusiveTo === 'string' ? item.exclusiveTo : undefined } : item)
+                        : []
+                }
+                : { equipped: {}, inventory: [] };
+            hero.adventureLog = Array.isArray(hero.adventureLog) ? hero.adventureLog.map(normalizeAdventure) : [];
+            dungeon.expeditionHistory = Array.isArray(dungeon.expeditionHistory)
+                ? dungeon.expeditionHistory.map(expedition => isRecord(expedition)
+                    ? { ...expedition, logs: Array.isArray(expedition.logs) ? expedition.logs.map(normalizeAdventure) : [] }
+                    : expedition)
+                : [];
+            if (isRecord(dungeon.currentExpedition)) {
+                dungeon.currentExpedition = {
+                    ...dungeon.currentExpedition,
+                    logs: Array.isArray(dungeon.currentExpedition.logs) ? dungeon.currentExpedition.logs.map(normalizeAdventure) : []
+                };
+            }
+            hero.dungeon = dungeon;
+            migrated.hero = hero;
+            migrated.version = 8;
             changed = true;
             continue;
         }
