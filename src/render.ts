@@ -1,5 +1,6 @@
 import { PNG } from 'pngjs';
 import { writeFile, mkdir } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { SPECIES } from './species.js';
 import { PetState, RenderResult } from './types.js';
@@ -69,9 +70,19 @@ function basePattern(species: PetState['species'], mood: number, energy: number)
   return patterns[species].map(row => row.replace(/e/g, eyes).replace(/m/g, mouth));
 }
 
+function resolveRenderDir(): string {
+  const envDir = process.env.MY_PET_HERO_RENDER_DIR?.trim();
+  if (envDir) return path.resolve(envDir);
+
+  const xdgStateHome = process.env.XDG_STATE_HOME?.trim();
+  if (xdgStateHome) return path.resolve(xdgStateHome, 'my-pet-hero', 'renders');
+
+  return path.join(os.homedir(), '.local', 'state', 'my-pet-hero', 'renders');
+}
+
 export async function renderStatusCard(params: { pet: PetState; summary: string; outputDir?: string }): Promise<RenderResult> {
   const { pet, summary } = params;
-  const outputDir = params.outputDir ?? path.resolve('/home/gigo/.openclaw/media/my-pet-hero');
+  const outputDir = params.outputDir ?? resolveRenderDir();
   await mkdir(outputDir, { recursive: true });
   const species = SPECIES[pet.species];
   const png = new PNG({ width: WIDTH, height: HEIGHT });

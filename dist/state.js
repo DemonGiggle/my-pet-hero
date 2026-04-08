@@ -1,5 +1,7 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile, readdir, access } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
@@ -263,18 +265,62 @@ const petStateSchema = z.object({
         text: z.string()
     }))
 });
-export const DEFAULT_DATA_DIR = path.resolve('/home/gigo/.openclaw/projects/my-pet-hero/data/pets');
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, '..');
+export const LEGACY_DATA_DIR = path.join(REPO_ROOT, 'data', 'pets');
+export const DEFAULT_DATA_DIR = resolveDefaultDataDir();
+function resolveDefaultDataDir() {
+    const envDir = process.env.MY_PET_HERO_DATA_DIR?.trim();
+    if (envDir)
+        return path.resolve(envDir);
+    const xdgStateHome = process.env.XDG_STATE_HOME?.trim();
+    if (xdgStateHome)
+        return path.resolve(xdgStateHome, 'my-pet-hero', 'pets');
+    return path.join(os.homedir(), '.local', 'state', 'my-pet-hero', 'pets');
+}
+async function pathExists(targetPath) {
+    try {
+        await access(targetPath);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+async function migrateLegacyPets(dataDir) {
+    if (dataDir === LEGACY_DATA_DIR)
+        return;
+    if (!(await pathExists(LEGACY_DATA_DIR)))
+        return;
+    await mkdir(dataDir, { recursive: true });
+    const legacyFiles = await readdir(LEGACY_DATA_DIR);
+    for (const fileName of legacyFiles) {
+        if (!fileName.endsWith('.json'))
+            continue;
+        const legacyPath = path.join(LEGACY_DATA_DIR, fileName);
+        const targetPath = path.join(dataDir, fileName);
+        if (await pathExists(targetPath))
+            continue;
+        await copyFile(legacyPath, targetPath);
+    }
+}
+export async function ensureDataDir(dataDir = DEFAULT_DATA_DIR) {
+    await migrateLegacyPets(dataDir);
+    await mkdir(dataDir, { recursive: true });
+    return dataDir;
+}
 export function petFilePath(id, dataDir = DEFAULT_DATA_DIR) {
     return path.join(dataDir, `${id}.json`);
 }
 export async function loadPet(id, dataDir = DEFAULT_DATA_DIR) {
-    const raw = await readFile(petFilePath(id, dataDir), 'utf8');
+    const resolvedDataDir = await ensureDataDir(dataDir);
+    const raw = await readFile(petFilePath(id, resolvedDataDir), 'utf8');
     return petStateSchema.parse(JSON.parse(raw));
 }
 export async function savePet(pet, dataDir = DEFAULT_DATA_DIR) {
-    await mkdir(dataDir, { recursive: true });
+    const resolvedDataDir = await ensureDataDir(dataDir);
     pet.updatedAt = new Date().toISOString();
-    await writeFile(petFilePath(pet.id, dataDir), JSON.stringify(pet, null, 2) + '\n', 'utf8');
+    await writeFile(petFilePath(pet.id, resolvedDataDir), JSON.stringify(pet, null, 2) + '\n', 'utf8');
 }
 function buildAptitude(species) {
     return {

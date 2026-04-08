@@ -1,7 +1,6 @@
 node_modules/
 dist/
-data/*
-!data/.gitkeep
+data/pets/
 renders/*
 !renders/.gitkeep
 *.log

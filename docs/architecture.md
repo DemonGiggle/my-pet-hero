@@ -74,14 +74,18 @@ My Pet Hero 採用 query-time simulation：
 ### `src/render.ts`
 - 產生像素風狀態圖 PNG
 - 圖上顯示角色名稱、等級、needs、attributes、deepest floor、summary
-- 輸出到 OpenClaw media 目錄下的 `my-pet-hero`
+- 輸出到使用者狀態目錄下的 `my-pet-hero/renders`
 
 ## Persisted state
 
 主要資料存在：
 
-- `data/pets/*.json`
-- `data/default-hero.json`
+- 使用者狀態目錄下的 `my-pet-hero/pets/*.json`
+  - 預設為 `~/.local/state/my-pet-hero/pets`
+  - 若有 `XDG_STATE_HOME`，則改用 `$XDG_STATE_HOME/my-pet-hero/pets`
+  - 若有 `MY_PET_HERO_DATA_DIR`，則以該路徑為準
+
+另外 `src/state.ts` 會在首次讀寫時檢查 repo 內舊路徑 `data/pets/`，若發現 legacy 本機存檔，會複製到新的 runtime 存檔目錄，避免之後再把玩家資料放進 Git。
 
 State 內容目前包含：
 
@@ -174,7 +178,7 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - 新建角色可正常 `status`
 - `inventory` / `combat-preview` / `dungeon-preview` CLI 存在且可輸出當前 schema 資料
 
-另外要注意：repo 內若保留舊版存檔，因為尚未做 migration，可能會在 `loadPet` 驗證時失敗。
+另外要注意：非常舊、缺少新版欄位的存檔，因為尚未做 schema migration，仍可能會在 `loadPet` 驗證時失敗。
 
 ## Next technical directions
 

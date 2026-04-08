@@ -7,7 +7,7 @@
 ## 目前已完成的核心內容
 
 - 不需要背景 daemon
-- 以單一 JSON 保存角色狀態
+- 以單一存檔保存角色狀態，且預設寫到 repo 外的使用者狀態目錄
 - 種族、職業、屬性、技能、戰鬥
 - 程序化迷宮 instance 與 room flow
 - 村莊 → 地下城 → 回村的 expedition loop
@@ -21,6 +21,16 @@
 npm install
 npm run build
 ```
+
+## 存檔位置
+
+預設會把角色存檔寫到使用者自己的狀態目錄，不會寫回 Git repo：
+
+- Linux / Raspberry Pi: `~/.local/state/my-pet-hero/pets`
+- 若設定 `XDG_STATE_HOME`，會改用 `$XDG_STATE_HOME/my-pet-hero/pets`
+- 若設定 `MY_PET_HERO_DATA_DIR`，則以該路徑為準
+
+第一次使用新版時，若 repo 舊位置 `data/pets/` 還有本機存檔，系統會自動搬到新的 runtime 存檔目錄，避免把私人進度放進版本控制。
 
 ## 基本使用
 
@@ -149,15 +159,14 @@ npm run dev -- enemies
 - `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` CLI 入口存在
 - 新版存檔可正確輸出 expedition / equipment 相關欄位
 
-## 存檔與輸出位置
+## 資料與輸出位置
 
-- 角色資料：`data/pets/*.json`
-- 預設角色範本：`data/default-hero.json`
-- 狀態圖輸出：OpenClaw media 目錄下的 `my-pet-hero/*.png`
+- 角色存檔：使用者狀態目錄（預設 `~/.local/state/my-pet-hero/pets`）
+- 狀態圖輸出：使用者狀態目錄（預設 `~/.local/state/my-pet-hero/renders`）
 
 ## 目前限制
 
-- 舊版存檔沒有 migration；缺少新版欄位時會載入失敗
+- 很舊、缺少新版欄位的存檔，仍可能因 schema 差距而載入失敗
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - room graph 目前已帶有少量 branching 資訊，但實際推進仍是線性前進到下一房
 - 還沒有 status effects、進階職業、技能成長、陷阱、商店互動
