@@ -8,11 +8,12 @@ export interface ChatPreferenceState {
 }
 
 export interface ChatCommandIntent {
-  namespace: 'pet';
+  namespace: 'pet' | 'pet_image';
   action: 'help' | 'status' | 'report' | 'inventory' | 'feed' | 'play' | 'clean' | 'heroes' | 'use';
   heroId?: string;
   raw: string;
   tokens: string[];
+  requestedVariant?: 'status' | 'card';
 }
 
 const CHAT_STATE_FILE = 'chat-preferences.json';
@@ -30,8 +31,33 @@ export function parseChatCommand(input: string): ChatCommandIntent {
 
   const [first, second, ...rest] = tokens;
   const namespace = first.replace(/^\//, '').toLowerCase();
-  if (namespace !== 'pet') {
-    throw new Error('聊天指令要用 /pet 開頭，例如 /pet status。');
+  if (namespace !== 'pet' && namespace !== 'pet_image') {
+    throw new Error('聊天指令要用 /pet 或 /pet_image 開頭，例如 /pet status。');
+  }
+
+  if (namespace === 'pet_image') {
+    const variant = second?.toLowerCase();
+    if (!variant) {
+      return { namespace: 'pet_image', action: 'status', requestedVariant: 'status', raw: input, tokens };
+    }
+    if (variant === 'status' || variant === 'card') {
+      return {
+        namespace: 'pet_image',
+        action: 'status',
+        requestedVariant: variant,
+        heroId: rest[0],
+        raw: input,
+        tokens
+      };
+    }
+    return {
+      namespace: 'pet_image',
+      action: 'status',
+      requestedVariant: 'status',
+      heroId: second,
+      raw: input,
+      tokens
+    };
   }
 
   const command = (second ?? 'status').toLowerCase();
@@ -88,6 +114,9 @@ export function formatChatHelp(): string {
     '/pet clean [heroId]     清潔',
     '/pet heroes             列出角色',
     '/pet use HERO_ID        設定預設角色',
-    '/pet help               顯示這份說明'
+    '/pet help               顯示這份說明',
+    '/pet_image [heroId]      送出狀態圖',
+    '/pet_image status [heroId] 送出狀態圖',
+    '/pet_image card [heroId]   送出狀態卡'
   ].join('\n');
 }
