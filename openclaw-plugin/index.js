@@ -209,14 +209,21 @@ export default definePluginEntry({
       async execute(_toolCallId, params) {
         const { payload, text } = await runPetCommand(api, params.command);
         const imagePath = pickImagePath(payload);
+        const mediaUrls = imagePath ? [imagePath] : undefined;
         return {
+          text,
+          mediaUrl: imagePath,
+          mediaUrls,
           content: imagePath
             ? [{ type: 'text', text }, { type: 'image', image: imagePath }]
             : [{ type: 'text', text }],
           imagePath,
           details: {
             ...payload,
-            imagePath: imagePath ?? payload?.imagePath ?? null
+            imagePath: imagePath ?? payload?.imagePath ?? null,
+            text,
+            mediaUrl: imagePath ?? null,
+            mediaUrls: mediaUrls ?? null
           }
         };
       }
