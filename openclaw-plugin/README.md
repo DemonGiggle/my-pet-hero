@@ -15,11 +15,14 @@ From a machine that already has this repo checked out:
 
 ```bash
 cd /path/to/my-pet-hero
+npm install
 npm run build
 openclaw plugins install ./openclaw-plugin
 ```
 
 Then restart the gateway.
+
+After each fresh clone or `git pull`, rebuild before using the plugin again if `dist/cli.js` is missing or stale.
 
 ## Optional plugin config
 
@@ -66,3 +69,4 @@ If the plugin directory is not sitting inside the My Pet Hero repo, set `project
 - The plugin does not hardcode personal save paths or secrets.
 - Save data still lives in My Pet Hero's runtime state directory, outside the repo.
 - Build the project after source changes so `dist/cli.js` stays current.
+- Because `dist/` is no longer tracked, a fresh checkout needs `npm run build` before the tool can execute.

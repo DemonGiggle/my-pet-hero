@@ -32,7 +32,11 @@ function resolveProjectDir(api) {
 
 async function assertBuiltProject(projectDir) {
   const cliPath = path.join(projectDir, 'dist', 'cli.js');
-  await access(cliPath);
+  try {
+    await access(cliPath);
+  } catch {
+    throw new Error(`Built CLI not found at ${cliPath}. Run \`npm install\` and \`npm run build\` in ${projectDir} after clone/pull.`);
+  }
   return cliPath;
 }
 

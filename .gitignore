@@ -1,4 +1,5 @@
 node_modules/
+# Source-first repo: build output stays local.
 dist/
 data/pets/
 renders/*

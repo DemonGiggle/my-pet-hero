@@ -28,6 +28,9 @@ npm install
 npm run build
 ```
 
+> 這個 repo 採 source-first 管理，`dist/` build artifacts 不再進版控。
+> 每次 fresh clone 或 `git pull` 之後，若要執行 `node dist/cli.js ...`、驗證腳本、或 OpenClaw plugin，請先跑一次 `npm run build`。
+
 ## 存檔位置
 
 預設會把角色存檔寫到使用者自己的狀態目錄，不會寫回 Git repo：
