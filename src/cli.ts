@@ -180,10 +180,55 @@ function buildNarrationSeed(result: ReturnType<typeof simulatePet>): Record<stri
   };
 }
 
+function buildRecentTimeline(result: ReturnType<typeof simulatePet>): string[] {
+  const pet = result.pet;
+  const lines: string[] = [];
+  const currentExpedition = pet.hero.dungeon.currentExpedition;
+  const latestExpedition = pet.hero.dungeon.expeditionHistory[pet.hero.dungeon.expeditionHistory.length - 1];
+  const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
+  const recentVillageActivities = pet.hero.dungeon.village.recentActivities.slice(-3).reverse();
+
+  if (currentExpedition) {
+    lines.push(`現在仍在 ${currentExpedition.dungeonName}，本趟已推進 ${currentExpedition.roomsCleared}/${currentExpedition.totalRooms} 房。`);
+    if (currentExpedition.villagePreparation.length > 0) {
+      lines.push(`出發前做過 ${currentExpedition.villagePreparation.join('、')}，這股準備還撐著這趟節奏。`);
+    }
+    const lastLog = currentExpedition.logs[currentExpedition.logs.length - 1];
+    if (lastLog) {
+      const roomLabel = lastLog.roomName ?? lastLog.roomType ?? '未知房間';
+      lines.push(`最近一站是 ${roomLabel}，結果 ${lastLog.outcome}，拿到 EXP +${lastLog.expGained} / Gold +${lastLog.goldGained}。`);
+    }
+  } else if (latestExpedition) {
+    lines.push(`上一趟剛從 ${latestExpedition.dungeonName} 回來，結果是 ${latestExpedition.status}${latestExpedition.returnMode ? ` / ${latestExpedition.returnMode}` : ''}。`);
+    if (latestExpedition.returnSummary) lines.push(latestExpedition.returnSummary);
+    const lastLog = latestExpedition.logs[latestExpedition.logs.length - 1];
+    if (lastLog) {
+      const roomLabel = lastLog.roomName ?? lastLog.roomType ?? '未知房間';
+      lines.push(`收尾前最後經過 ${roomLabel}，結果 ${lastLog.outcome}。`);
+    }
+  }
+
+  if (pet.hero.dungeon.location === 'village' && currentVillageActivity) {
+    lines.push(`回到 ${pet.hero.dungeon.village.name} 後，現在正忙著${currentVillageActivity.summary}。`);
+  }
+
+  for (const activity of recentVillageActivities) {
+    lines.push(`稍早做過「${activity.label}」，${activity.summary}。`);
+    if (lines.length >= 5) break;
+  }
+
+  if (lines.length === 0) {
+    lines.push(`${pet.name} 目前待在 ${pet.hero.dungeon.village.name}，最近還沒留下新的探險或村莊節奏。`);
+  }
+
+  return Array.from(new Set(lines)).slice(0, 5);
+}
+
 function buildStoryBeats(result: ReturnType<typeof simulatePet>): string[] {
   const pet = result.pet;
   const beats: string[] = [];
   beats.push(describeCurrentScene(pet));
+  beats.push(...buildRecentTimeline(result));
   beats.push(...summarizeRecentStoryBeats(pet));
   beats.push(summarizeRisk(pet).riskSummary);
   return Array.from(new Set(beats)).slice(0, 5);
@@ -361,6 +406,7 @@ async function getStatusPayload(idArg?: string, includeReport = false): Promise<
     quickStatus: `${formatNeedSummary(result.pet)}；準備度 ${villageReadinessLabel(villageReadinessScore(result.pet))}`,
     narrationSeed: buildNarrationSeed(result),
     storyBeats: buildStoryBeats(result),
+    recentTimeline: buildRecentTimeline(result),
     riskSummary: summarizeRisk(result.pet).riskSummary,
     keyStats: buildKeyStats(result),
     mood: result.moodLabel,

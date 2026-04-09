@@ -41,11 +41,16 @@ const inventoryResult = await registeredTool.execute('toolcall-inventory', { com
 
 const statusText = statusResult?.content?.find((item) => item.type === 'text')?.text ?? '';
 const statusImage = statusResult?.content?.find((item) => item.type === 'image')?.image ?? '';
+const statusImagePath = statusResult?.imagePath ?? statusResult?.details?.imagePath ?? '';
 const reportText = reportResult?.content?.find((item) => item.type === 'text')?.text ?? '';
 const inventoryText = inventoryResult?.content?.find((item) => item.type === 'text')?.text ?? '';
+const timeline = statusResult?.details?.recentTimeline ?? [];
 
 if (!statusText.includes('✦')) throw new Error('Status reply did not include compact stats.');
+if (!statusText.includes('最近動向:')) throw new Error('Status reply did not include recent timeline narration.');
 if (!statusImage) throw new Error('Status reply did not include an image.');
+if (!statusImagePath) throw new Error('Status reply did not expose imagePath.');
+if (!Array.isArray(timeline) || timeline.length === 0) throw new Error('Status details did not include recentTimeline.');
 if (!reportText.includes('【近況】')) throw new Error('Report reply did not include report text.');
 if (!inventoryText.includes('裝備：')) throw new Error('Inventory reply did not include equipment summary.');
 

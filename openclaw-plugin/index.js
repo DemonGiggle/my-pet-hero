@@ -9,7 +9,8 @@ import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TOOL_NAME = 'my_pet_hero_pet';
-const MAX_BEATS = 2;
+const MAX_BEATS = 3;
+const MAX_TIMELINE = 4;
 
 function asTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -87,6 +88,11 @@ function buildNarratedMessage(payload) {
     .map((item) => getString(item))
     .filter(Boolean)
     .slice(0, MAX_BEATS);
+  const recentTimeline = getArray(payload.recentTimeline)
+    .map((item) => getString(item))
+    .filter(Boolean)
+    .slice(0, MAX_TIMELINE);
+  const imagePath = pickImagePath(payload);
   const pushUnique = (lines, value) => {
     const trimmed = getString(value);
     if (!trimmed) return;
@@ -139,9 +145,15 @@ function buildNarratedMessage(payload) {
   if (beatLine) pushUnique(lines, beatLine);
   else pushUnique(lines, momentum);
 
+  if (recentTimeline.length > 0) {
+    lines.push('最近動向:');
+    for (const item of recentTimeline) lines.push(`• ${item}`);
+  }
+
   pushUnique(lines, riskSummary);
   const stats = formatKeyStats(payload);
   if (stats) lines.push(stats);
+  if (imagePath) lines.push(`圖卡：${imagePath}`);
   if (command === 'report' && report) lines.push(`\n${report}`);
   return lines.filter(Boolean).join('\n');
 }
@@ -201,7 +213,11 @@ export default definePluginEntry({
           content: imagePath
             ? [{ type: 'text', text }, { type: 'image', image: imagePath }]
             : [{ type: 'text', text }],
-          details: payload
+          imagePath,
+          details: {
+            ...payload,
+            imagePath: imagePath ?? payload?.imagePath ?? null
+          }
         };
       }
     }, { optional: true });
