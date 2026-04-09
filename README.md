@@ -131,6 +131,8 @@ openclaw plugins install ./openclaw-plugin
 
 更完整的整合說明見 `docs/openclaw-chat.md`。
 
+如果你是第一次在另一台 OpenClaw 主機安裝，請直接看 `docs/INSTALL_OPENCLAW.md`，裡面有最短 SOP、config 提示與故障排查順序。
+
 支援的聊天指令：
 
 - `/pet status [heroId]`

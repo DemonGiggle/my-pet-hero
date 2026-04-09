@@ -24,6 +24,8 @@ Then restart the gateway.
 
 After each fresh clone or `git pull`, rebuild before using the plugin again if `dist/cli.js` is missing or stale.
 
+For a fresh-host setup guide with install order, config hints, and troubleshooting, see `../docs/INSTALL_OPENCLAW.md`.
+
 ## Optional plugin config
 
 If the plugin directory is not sitting inside the My Pet Hero repo, set `projectDir` to the repo root containing `dist/cli.js`.
