@@ -9,6 +9,7 @@ import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TOOL_NAME = 'my_pet_hero_pet';
+const IMAGE_VARIANTS = new Set(['status', 'card']);
 const MAX_BEATS = 3;
 const MAX_TIMELINE = 4;
 
@@ -38,6 +39,27 @@ async function assertBuiltProject(projectDir) {
 function normalizeRawPetCommand(raw) {
   const trimmed = asTrimmedString(raw);
   return trimmed ? `/pet ${trimmed}` : '/pet';
+}
+
+function parsePetImageRequest(raw) {
+  const trimmed = asTrimmedString(raw);
+  if (!trimmed) return { chatCommand: 'status', requestedVariant: 'status' };
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const [first = '', second = ''] = tokens;
+  const firstLower = first.toLowerCase();
+
+  if (IMAGE_VARIANTS.has(firstLower)) {
+    return {
+      chatCommand: second ? `status ${second}` : 'status',
+      requestedVariant: firstLower
+    };
+  }
+
+  return {
+    chatCommand: `status ${trimmed}`,
+    requestedVariant: 'status'
+  };
 }
 
 function getString(value) {
@@ -193,6 +215,21 @@ async function runPetCommand(api, rawCommand) {
   };
 }
 
+function buildPetImageCaption(payload, requestedVariant) {
+  if (!payload || typeof payload !== 'object') {
+    return '寵物狀態圖已送達。';
+  }
+
+  const headline = getString(payload.headline);
+  const quickStatus = getString(payload.quickStatus);
+  const riskSummary = getString(payload.riskSummary);
+  const imageLabel = requestedVariant === 'card' ? '狀態卡' : '狀態圖';
+  const lines = [headline || `${imageLabel}已送達。`];
+  if (quickStatus && quickStatus !== headline) lines.push(quickStatus);
+  if (riskSummary) lines.push(riskSummary);
+  return lines.join('\n');
+}
+
 export default definePluginEntry({
   id: 'my-pet-hero',
   name: 'My Pet Hero',
@@ -207,21 +244,27 @@ export default definePluginEntry({
         skillName: Type.Optional(Type.String({ description: 'Source skill name. Provided automatically for skill command dispatch.' }))
       }),
       async execute(_toolCallId, params) {
-        const { payload, text } = await runPetCommand(api, params.command);
+        const commandName = getString(params.commandName).toLowerCase();
+        const isPetImageCommand = commandName === 'pet_image';
+        const petImageRequest = isPetImageCommand ? parsePetImageRequest(params.command) : null;
+        const { payload, text } = await runPetCommand(api, petImageRequest?.chatCommand ?? params.command);
         const imagePath = pickImagePath(payload);
         const mediaUrls = imagePath ? [imagePath] : undefined;
+        const outputText = isPetImageCommand ? buildPetImageCaption(payload, petImageRequest?.requestedVariant) : text;
         return {
-          text,
+          text: outputText,
           mediaUrl: imagePath,
           mediaUrls,
           content: imagePath
-            ? [{ type: 'text', text }, { type: 'image', image: imagePath }]
-            : [{ type: 'text', text }],
+            ? [{ type: 'text', text: outputText }, { type: 'image', image: imagePath }]
+            : [{ type: 'text', text: outputText }],
           imagePath,
           details: {
             ...payload,
+            commandAlias: isPetImageCommand ? 'pet_image' : null,
+            requestedVariant: petImageRequest?.requestedVariant ?? null,
             imagePath: imagePath ?? payload?.imagePath ?? null,
-            text,
+            text: outputText,
             mediaUrl: imagePath ?? null,
             mediaUrls: mediaUrls ?? null
           }

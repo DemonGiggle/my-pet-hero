@@ -136,6 +136,9 @@ openclaw plugins install ./openclaw-plugin
 - `/pet feed [heroId]`
 - `/pet play [heroId]`
 - `/pet clean [heroId]`
+- `/pet_image [heroId]`
+- `/pet_image status [heroId]`
+- `/pet_image card [heroId]`
 - `/pet heroes`
 - `/pet use HERO_ID`
 - `/pet help`

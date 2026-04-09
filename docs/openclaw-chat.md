@@ -3,10 +3,10 @@
 My Pet Hero now exposes both:
 
 - a reusable `chat` CLI entrypoint for slash-style commands
-- `openclaw-plugin/`, the preferred OpenClaw integration, which ships a deterministic tool plus a `pet` skill wired with `command-dispatch: tool`
+- `openclaw-plugin/`, the preferred OpenClaw integration, which ships a deterministic tool plus `pet` and `pet_image` skills wired with `command-dispatch: tool`
 - the older standalone `skills/pet/` skill, which still works for prompt-based routing
 
-The intent is that OpenClaw can register `/pet` itself, then hand the rest of the message to My Pet Hero as subcommands.
+The intent is that OpenClaw can register `/pet` and `/pet_image` itself, then hand the rest of the message to My Pet Hero as subcommands.
 
 ## How native `/pet` registration works
 
@@ -51,7 +51,7 @@ npm run build
 openclaw plugins install ./openclaw-plugin
 ```
 
-This gives OpenClaw the deterministic tool. The matching `/pet` skill can come from the bundled plugin skill or the workspace `skills/pet/` mirror.
+This gives OpenClaw the deterministic tool. The matching `/pet` and `/pet_image` skills can come from the bundled plugin skills or the workspace mirrors.
 
 If you keep a workspace-visible `skills/pet/`, make sure it uses the deterministic tool-dispatch frontmatter. Avoid the old skill-only prompt route.
 
@@ -74,13 +74,13 @@ Then make sure native skill commands are enabled. The default OpenClaw config is
 }
 ```
 
-After restarting the gateway, Telegram should show `/pet` in the bot command menu.
+After restarting the gateway, Telegram should show `/pet` and `/pet_image` in the bot command menu.
 
 ## BotFather / admin notes
 
 No separate BotFather command wiring is needed when OpenClaw native commands are enabled. OpenClaw performs the Telegram command registration.
 
-If `/pet` does not appear, check:
+If `/pet` or `/pet_image` does not appear, check:
 
 - the `my-pet-hero` plugin is installed and enabled
 - the optional tool `my_pet_hero_pet` is allowed by tool policy when needed
@@ -101,6 +101,8 @@ That still makes `/pet` eligible for native registration, but it does not provid
 ## Goal
 
 Let OpenClaw or any bot-like wrapper send concise commands such as `/pet status` instead of reconstructing full CLI arguments every time.
+
+For image-first flows, `/pet_image` is the dedicated native command. It reuses the same deterministic tool, maps to `/pet status ...` under the hood, and returns a shorter caption with the status card attached.
 
 ## Entry point
 
@@ -136,6 +138,9 @@ See `docs/chat-output-contract.md` and `docs/narration-style.md` for the portabl
 - `/pet feed [heroId]`
 - `/pet play [heroId]`
 - `/pet clean [heroId]`
+- `/pet_image [heroId]`
+- `/pet_image status [heroId]`
+- `/pet_image card [heroId]`
 - `/pet heroes`
 - `/pet use HERO_ID`
 - `/pet help`

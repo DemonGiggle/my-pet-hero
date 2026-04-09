@@ -1,13 +1,13 @@
 # My Pet Hero OpenClaw plugin
 
-This plugin gives OpenClaw a deterministic `my_pet_hero_pet` tool and a native `/pet` skill command that dispatches straight to that tool.
+This plugin gives OpenClaw a deterministic `my_pet_hero_pet` tool plus native `/pet` and `/pet_image` skill commands that dispatch straight to that tool.
 
 ## What it does
 
 - registers tool: `my_pet_hero_pet`
-- ships skill: `pet`
+- ships skills: `pet`, `pet_image`
 - skill frontmatter uses `command-dispatch: tool`
-- native `/pet` can execute without routing through the LLM
+- native `/pet` and `/pet_image` can execute without routing through the LLM
 
 ## Install locally from this repo
 
@@ -53,6 +53,13 @@ If the plugin directory is not sitting inside the My Pet Hero repo, set `project
 2. skill dispatches to tool `my_pet_hero_pet`
 3. tool runs `node dist/cli.js chat --input "/pet report asaki"`
 4. tool returns the JSON payload's `message`/`report`/`headline` as reply text
+
+`/pet_image card asaki`
+
+1. Telegram/OpenClaw native command resolves skill `pet_image`
+2. skill dispatches to the same tool `my_pet_hero_pet`
+3. tool maps it to `node dist/cli.js chat --input "/pet status asaki"`
+4. tool returns a short caption plus the rendered status image
 
 ## Notes
 

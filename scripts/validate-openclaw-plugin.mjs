@@ -38,12 +38,15 @@ if (!registeredTool?.execute) {
 const statusResult = await registeredTool.execute('toolcall-status', { command: 'status' });
 const reportResult = await registeredTool.execute('toolcall-report', { command: 'report' });
 const inventoryResult = await registeredTool.execute('toolcall-inventory', { command: 'inventory' });
+const petImageResult = await registeredTool.execute('toolcall-pet-image', { commandName: 'pet_image', command: 'card asaki' });
 
 const statusText = statusResult?.content?.find((item) => item.type === 'text')?.text ?? '';
 const statusImage = statusResult?.content?.find((item) => item.type === 'image')?.image ?? '';
 const statusImagePath = statusResult?.imagePath ?? statusResult?.details?.imagePath ?? '';
 const reportText = reportResult?.content?.find((item) => item.type === 'text')?.text ?? '';
 const inventoryText = inventoryResult?.content?.find((item) => item.type === 'text')?.text ?? '';
+const petImageText = petImageResult?.content?.find((item) => item.type === 'text')?.text ?? '';
+const petImage = petImageResult?.content?.find((item) => item.type === 'image')?.image ?? '';
 const timeline = statusResult?.details?.recentTimeline ?? [];
 
 if (!statusText.includes('✦')) throw new Error('Status reply did not include compact stats.');
@@ -53,6 +56,10 @@ if (!statusImagePath) throw new Error('Status reply did not expose imagePath.');
 if (!Array.isArray(timeline) || timeline.length === 0) throw new Error('Status details did not include recentTimeline.');
 if (!reportText.includes('【近況】')) throw new Error('Report reply did not include report text.');
 if (!inventoryText.includes('裝備：')) throw new Error('Inventory reply did not include equipment summary.');
+if (!petImage) throw new Error('pet_image reply did not include an image.');
+if (petImageResult?.details?.commandAlias !== 'pet_image') throw new Error('pet_image reply did not record command alias.');
+if (petImageResult?.details?.requestedVariant !== 'card') throw new Error('pet_image reply did not preserve requested variant.');
+if (!petImageText.includes('準備度')) throw new Error('pet_image caption did not include quick status.');
 
 console.log('OPENCLAW_PLUGIN_STATUS:');
 console.log(statusText);
