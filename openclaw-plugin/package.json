@@ -15,7 +15,8 @@
     "openclaw": ">=0.0.0"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.41"
+    "@sinclair/typebox": "^0.34.41",
+    "openclaw": "^2026.4.9"
   },
   "openclaw": {
     "extensions": [
