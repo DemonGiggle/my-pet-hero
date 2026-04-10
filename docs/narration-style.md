@@ -101,6 +101,9 @@ For default `/pet`:
 For `/pet report`:
 
 - allow a slightly richer write-up
+- treat it as an RPG log / storyteller recap rather than a plain expanded summary
+- surface recent village activities and expedition progression as a sequence, not isolated facts
+- when battle history is available, include the fight flow or key turns instead of reducing everything to a final result line
 - still preserve storytelling over report-dump formatting
 
 ## Image policy
@@ -122,6 +125,8 @@ When an OpenClaw integration or another wrapper consumes My Pet Hero output:
 - treat the game payload as structured source material
 - preserve `imagePath`
 - narrate from `events`, `adventures`, `currentExpedition`, `village`, `headline`, `quickStatus`, and risk-relevant `needs`
+- for `/pet report`, default to story progression over flat summarization
+- if the payload includes recent combat turns or expedition logs, use them in the report view instead of omitting them
 - do not simply paste the entire raw JSON
 
 ## Reference examples

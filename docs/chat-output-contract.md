@@ -116,10 +116,15 @@ Expected wrapper behavior:
 
 1. attach the image when available
 2. allow a slightly richer story summary
-3. still avoid raw JSON or long dashboard formatting
+3. treat the report as an RPG-style log or storyteller recap, not just a longer status line
+4. include meaningful recent activity progression when available, especially village activities, expedition progress, and combat outcomes
+5. when combat history is available in the payload, do not silently omit it from the report-oriented presentation
+6. still avoid raw JSON or long dashboard formatting
 
 ## Portability requirement
 
 The repo must contain enough documentation and structured output guidance so another OpenClaw setup can reproduce the intended behavior after clone + build + install.
+
+Narration and report behavior that materially shapes the product experience must live in this repo, not only in local memory, private prompt tweaks, or one-off operator habits.
 
 Do not rely on hidden local prompt tweaks as the primary source of truth.
