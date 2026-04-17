@@ -4,6 +4,7 @@ import { clamp, expToNextLevel, hashToUnit } from './utils.js';
 import { runCombat } from './combat.js';
 import { chooseNextDungeonRoom, generateDungeonInstance, getCurrentRoom, markRoomCleared, renderDungeonMinimap } from './dungeons.js';
 import { autoEquipLoot, maybeGenerateLoot } from './gear.js';
+import { appendNarrativeBeat, createExpeditionNarrative } from './narrative.js';
 
 export function autoRecoverNeeds(pet: PetState, at: string): string[] {
   const notes: string[] = [];
@@ -70,7 +71,8 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
       totalGoldGained: 0,
       villagePreparation: prepNotes,
       completed: false,
-      logs: []
+      logs: [],
+      narrative: createExpeditionNarrative({ pet, dungeon: created })
     };
     return created;
   }
@@ -342,6 +344,21 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
     pet.hero.dungeon.currentExpedition.totalExpGained += exp;
     pet.hero.dungeon.currentExpedition.totalGoldGained += gold;
     if (room.type === 'boss' && outcome === 'win') pet.hero.dungeon.currentExpedition.bossDefeated = true;
+    pet.hero.dungeon.currentExpedition.narrative = appendNarrativeBeat({
+      expedition: pet.hero.dungeon.currentExpedition,
+      log,
+      pet
+    });
+    log.narrative = {
+      phase: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'setup' ? 'arrival'
+        : pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'turning-point' ? 'discovery'
+        : pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'escalation' ? 'pressure'
+        : pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'climax' ? 'climax'
+        : 'return',
+      beatTitle: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.title ?? '推進中',
+      beatText: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.text ?? log.text,
+      stateTags: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.stateTags ?? []
+    };
     if ((pet.hero.dungeon.currentExpedition.status === 'returned' || pet.hero.dungeon.currentExpedition.status === 'failed') && !pet.hero.dungeon.currentExpedition.returnSummary) {
       pet.hero.dungeon.currentExpedition.returnSummary = pet.hero.dungeon.currentExpedition.status === 'failed'
         ? '這趟探險失利，狼狽地被帶回村莊。'

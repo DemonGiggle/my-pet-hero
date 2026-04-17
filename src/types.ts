@@ -269,6 +269,31 @@ export interface AdventureLog {
     pathTakenRoomIds?: string[];
     minimap?: string;
   };
+  narrative?: {
+    phase: 'arrival' | 'foreshadow' | 'pressure' | 'discovery' | 'climax' | 'return';
+    beatTitle: string;
+    beatText: string;
+    stateTags: string[];
+  };
+}
+
+export interface ExpeditionNarrativeBeat {
+  at: string;
+  phase: 'setup' | 'turning-point' | 'escalation' | 'climax' | 'return';
+  title: string;
+  text: string;
+  relatedRoomId?: string;
+  relatedLogAt?: string;
+  stateTags: string[];
+}
+
+export interface ExpeditionNarrativeState {
+  premise: string;
+  tension: number;
+  arc: 'fresh' | 'pressing' | 'perilous' | 'resolving';
+  partyCondition: 'steady' | 'strained' | 'frayed' | 'critical';
+  latestBeat?: ExpeditionNarrativeBeat;
+  beats: ExpeditionNarrativeBeat[];
 }
 
 export interface DungeonTrap {
@@ -355,6 +380,7 @@ export interface ExpeditionSummary {
   returnSummary?: string;
   completed: boolean;
   logs: AdventureLog[];
+  narrative: ExpeditionNarrativeState;
 }
 
 export interface VillageActivityRecord {

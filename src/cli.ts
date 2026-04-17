@@ -13,6 +13,7 @@ import { autoDungeonRun } from './systems.js';
 import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
 import { renderDungeonMinimap } from './dungeons.js';
 import { villageReadinessLabel, villageReadinessScore } from './village.js';
+import { buildExpeditionStorySummary, renderNarrativeDigest } from './narrative.js';
 import { formatChatHelp, loadChatPreferences, parseChatCommand, saveChatPreferences } from './chat.js';
 
 function getArg(name: string): string | undefined {
@@ -94,6 +95,7 @@ function summarizeRecentStoryBeats(pet: PetState): string[] {
 
   if (currentExpedition) {
     beats.push(`${currentExpedition.dungeonName} 這趟還沒結束，最深處的壓力仍掛在身上。`);
+    beats.push(...buildExpeditionStorySummary(currentExpedition));
   }
 
   for (const item of adventures) {
@@ -313,10 +315,12 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 
   if (pet.hero.dungeon.currentExpedition) {
     lines.push(`【正在做什麼】剛好人在 ${pet.hero.dungeon.currentExpedition.dungeonName}，目前清了 ${pet.hero.dungeon.currentExpedition.roomsCleared}/${pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
+    lines.push(...renderNarrativeDigest(pet.hero.dungeon.currentExpedition));
     lines.push(...formatExpeditionSummary(pet.hero.dungeon.currentExpedition as PetState['hero']['dungeon']['expeditionHistory'][number]).map(line => `  ${line}`));
   } else if (pet.hero.dungeon.expeditionHistory.length > 0) {
     const latest = pet.hero.dungeon.expeditionHistory[pet.hero.dungeon.expeditionHistory.length - 1];
     lines.push(`【上一趟探險】剛從 ${latest.dungeonName} 回來，結果是 ${latest.status}${latest.returnMode ? ` / ${latest.returnMode}` : ''}。`);
+    lines.push(...renderNarrativeDigest(latest));
     lines.push(...formatExpeditionSummary(latest).map(line => `  ${line}`));
   } else {
     lines.push(`【探險節奏】最近還沒留下正式探險紀錄，目前待在 ${pet.hero.dungeon.village.name}。`);
@@ -374,6 +378,7 @@ async function getStatusPayload(idArg?: string, includeReport = false): Promise<
     },
     currentExpedition: result.pet.hero.dungeon.currentExpedition ?? null,
     expeditionHistory: result.pet.hero.dungeon.expeditionHistory.slice(-3),
+    expeditionNarrative: result.pet.hero.dungeon.currentExpedition?.narrative ?? result.pet.hero.dungeon.expeditionHistory[result.pet.hero.dungeon.expeditionHistory.length - 1]?.narrative ?? null,
     id: result.pet.id,
     name: result.pet.name,
     species: result.pet.species,
@@ -407,6 +412,7 @@ async function getStatusPayload(idArg?: string, includeReport = false): Promise<
     narrationSeed: buildNarrationSeed(result),
     storyBeats: buildStoryBeats(result),
     recentTimeline: buildRecentTimeline(result),
+    narrativeDigest: renderNarrativeDigest(result.pet.hero.dungeon.currentExpedition ?? result.pet.hero.dungeon.expeditionHistory[result.pet.hero.dungeon.expeditionHistory.length - 1] ?? null),
     riskSummary: summarizeRisk(result.pet).riskSummary,
     keyStats: buildKeyStats(result),
     mood: result.moodLabel,

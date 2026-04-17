@@ -46,6 +46,8 @@ The payload should expose at least:
 - `events`
 - `adventures`
 - `currentExpedition`
+- `expeditionNarrative`
+- `narrativeDigest`
 - `village`
 
 ## Field semantics
@@ -83,6 +85,28 @@ Ordered short lines describing the most important recent developments. These sho
 ### `riskSummary`
 A short deterministic warning or readiness assessment.
 
+### `expeditionNarrative`
+Structured run-level story state for the active or most recent expedition.
+
+Suggested shape:
+
+```json
+{
+  "premise": "這趟地城的敘事命題",
+  "tension": 64,
+  "arc": "pressing",
+  "partyCondition": "strained",
+  "latestBeat": {
+    "title": "壓力開始反咬",
+    "text": "最新一次房間推進帶來的轉折"
+  },
+  "beats": []
+}
+```
+
+### `narrativeDigest`
+Preformatted deterministic story digest lines, suitable for report mode or wrappers that want a richer recap without reconstructing the whole arc themselves.
+
 ### `keyStats`
 Only the small subset of stats that matter for chat presentation.
 
@@ -107,7 +131,7 @@ Suggested shape:
 Expected wrapper behavior:
 
 1. attach the image from `imagePath` when possible
-2. write a short narrated vignette using `narrationSeed` and `storyBeats`
+2. write a short narrated vignette using `narrationSeed`, `storyBeats`, and, when present, `expeditionNarrative.latestBeat`
 3. include a compact stat block only if it helps decision-making
 
 ### `/pet report`
@@ -117,7 +141,7 @@ Expected wrapper behavior:
 1. attach the image when available
 2. allow a slightly richer story summary
 3. treat the report as an RPG-style log or storyteller recap, not just a longer status line
-4. include meaningful recent activity progression when available, especially village activities, expedition progress, and combat outcomes
+4. include meaningful recent activity progression when available, especially village activities, expedition progress, combat outcomes, and run-level story turns
 5. when combat history is available in the payload, do not silently omit it from the report-oriented presentation
 6. still avoid raw JSON or long dashboard formatting
 

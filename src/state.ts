@@ -8,7 +8,7 @@ import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
 
-export const CURRENT_SAVE_VERSION = 9;
+export const CURRENT_SAVE_VERSION = 10;
 
 const needsSchema = z.object({
   health: z.number(),
@@ -175,6 +175,25 @@ const dungeonInstanceSchema = z.object({
   modifiers: z.array(dungeonModifierSchema).default([])
 });
 
+const expeditionNarrativeBeatSchema = z.object({
+  at: z.string(),
+  phase: z.enum(['setup', 'turning-point', 'escalation', 'climax', 'return']),
+  title: z.string(),
+  text: z.string(),
+  relatedRoomId: z.string().optional(),
+  relatedLogAt: z.string().optional(),
+  stateTags: z.array(z.string()).default([])
+});
+
+const expeditionNarrativeStateSchema = z.object({
+  premise: z.string().default(''),
+  tension: z.number().default(0),
+  arc: z.enum(['fresh', 'pressing', 'perilous', 'resolving']).default('fresh'),
+  partyCondition: z.enum(['steady', 'strained', 'frayed', 'critical']).default('steady'),
+  latestBeat: expeditionNarrativeBeatSchema.optional(),
+  beats: z.array(expeditionNarrativeBeatSchema).default([])
+});
+
 const petStateSchema = z.object({
   version: z.number(),
   id: z.string(),
@@ -226,7 +245,8 @@ const petStateSchema = z.object({
         villagePreparation: z.array(z.string()).default([]),
         returnSummary: z.string().optional(),
         completed: z.boolean().default(false),
-        logs: z.array(z.any())
+        logs: z.array(z.any()),
+        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] })
       }).optional(),
       expeditionHistory: z.array(z.object({
         id: z.string(),
@@ -244,7 +264,8 @@ const petStateSchema = z.object({
         villagePreparation: z.array(z.string()).default([]),
         returnSummary: z.string().optional(),
         completed: z.boolean().default(false),
-        logs: z.array(z.any())
+        logs: z.array(z.any()),
+        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] })
       })).default([]),
       village: z.object({
         name: z.string().default('晨霧村'),
@@ -325,6 +346,12 @@ const petStateSchema = z.object({
         completedDungeon: z.boolean(),
         pathTakenRoomIds: z.array(z.string()).optional(),
         minimap: z.string().optional()
+      }).optional(),
+      narrative: z.object({
+        phase: z.enum(['arrival', 'foreshadow', 'pressure', 'discovery', 'climax', 'return']),
+        beatTitle: z.string(),
+        beatText: z.string(),
+        stateTags: z.array(z.string())
       }).optional()
     }))
   }),
@@ -360,7 +387,17 @@ function ensureExpeditionShape(expedition: unknown): unknown {
     villagePreparation: Array.isArray(expedition.villagePreparation) ? expedition.villagePreparation : [],
     returnSummary: typeof expedition.returnSummary === 'string' ? expedition.returnSummary : undefined,
     completed: typeof expedition.completed === 'boolean' ? expedition.completed : false,
-    logs: Array.isArray(expedition.logs) ? expedition.logs : []
+    logs: Array.isArray(expedition.logs) ? expedition.logs : [],
+    narrative: isRecord(expedition.narrative)
+      ? {
+          premise: typeof expedition.narrative.premise === 'string' ? expedition.narrative.premise : '',
+          tension: typeof expedition.narrative.tension === 'number' ? expedition.narrative.tension : 0,
+          arc: typeof expedition.narrative.arc === 'string' ? expedition.narrative.arc : 'fresh',
+          partyCondition: typeof expedition.narrative.partyCondition === 'string' ? expedition.narrative.partyCondition : 'steady',
+          latestBeat: isRecord(expedition.narrative.latestBeat) ? expedition.narrative.latestBeat : undefined,
+          beats: Array.isArray(expedition.narrative.beats) ? expedition.narrative.beats : []
+        }
+      : { premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] }
   };
 }
 
@@ -558,7 +595,8 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
                   pathTakenRoomIds: Array.isArray(entry.runState.pathTakenRoomIds) ? entry.runState.pathTakenRoomIds : undefined,
                   minimap: typeof entry.runState.minimap === 'string' ? entry.runState.minimap : undefined
                 }
-              : entry.runState
+              : entry.runState,
+            narrative: isRecord(entry.narrative) ? entry.narrative : undefined
           }
         : entry;
       hero.equipment = isRecord(hero.equipment)
@@ -619,6 +657,34 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
       hero.dungeon = dungeon;
       migrated.hero = hero;
       migrated.version = 9;
+      changed = true;
+      continue;
+    }
+
+    if (currentVersion === 9) {
+      const hero = isRecord(migrated.hero) ? migrated.hero : {};
+      const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
+      dungeon.currentExpedition = dungeon.currentExpedition ? ensureExpeditionShape(dungeon.currentExpedition) : undefined;
+      dungeon.expeditionHistory = Array.isArray(dungeon.expeditionHistory)
+        ? dungeon.expeditionHistory.map(ensureExpeditionShape)
+        : [];
+      const normalizeAdventure = (entry: unknown) => isRecord(entry)
+        ? {
+            ...entry,
+            narrative: isRecord(entry.narrative)
+              ? {
+                  phase: typeof entry.narrative.phase === 'string' ? entry.narrative.phase : 'arrival',
+                  beatTitle: typeof entry.narrative.beatTitle === 'string' ? entry.narrative.beatTitle : '',
+                  beatText: typeof entry.narrative.beatText === 'string' ? entry.narrative.beatText : '',
+                  stateTags: Array.isArray(entry.narrative.stateTags) ? entry.narrative.stateTags : []
+                }
+              : undefined
+          }
+        : entry;
+      hero.adventureLog = Array.isArray(hero.adventureLog) ? hero.adventureLog.map(normalizeAdventure) : [];
+      hero.dungeon = dungeon;
+      migrated.hero = hero;
+      migrated.version = 10;
       changed = true;
       continue;
     }

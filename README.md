@@ -14,6 +14,7 @@
 - 裝備、掉寶、背包、自動換裝、手動 equip / sell
 - 狀態 PNG 輸出
 - `status --report` 人類可讀近況摘要
+- run-level 敘事弧線、關鍵 story beats 與 state-grounded dungeon report
 - 單一角色時可省略 `--id`
 - `chat --input "/pet ..."` 聊天指令路由，方便 OpenClaw / bot 使用
 - `/pet` 專用的可重現圖文輸出 contract，讓 wrapper 可用 raw data 包裝出短篇奇幻敘事並附圖
@@ -229,6 +230,7 @@ npm run dev -- doctor --id asaki
 - `currentDungeon`
 - `currentExpedition`
 - `expeditionHistory`
+- `expeditionNarrative`
 - `equipmentSummary`
 - `report`（加 `--report` 時）
 - `readiness`
@@ -258,6 +260,12 @@ npm run dev -- doctor --id asaki
 
 另外 `headline` / `quickStatus` 也會直接放進 `status` JSON，方便 bot 或自然語言介面直接取用。
 
+現在 `status` / `report` 也會多帶：
+
+- `expeditionNarrative` 當前或上一趟探險的敘事狀態
+- `narrativeDigest` 已整理好的故事線摘要
+- `adventureLog[].narrative` 每個房間對應的 story beat
+
 ## 驗證狀態
 
 目前已確認：
@@ -276,7 +284,7 @@ npm run dev -- doctor --id asaki
 
 ## 目前限制
 
-- v2~v8 舊存檔會在載入時自動 migration 到 v9，並先備份原始 JSON
+- v2~v9 舊存檔會在載入時自動 migration 到 v10，並先備份原始 JSON
 - `doctor` 目前提供的是 migration 策略與存檔概況，不是完整 repair tool
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - bitmap minimap / status card integration 還沒做，刻意先不硬塞進這輪

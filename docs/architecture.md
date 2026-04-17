@@ -41,8 +41,8 @@ My Pet Hero 採用 query-time simulation：
 - 載入 / 驗證 / 儲存 pet state
 - 建立新角色
 - 定義 zod schema
-- 目前 schema version 為 9
-- `loadPet` 會自動將 v2~v8 存檔升級到 v9，成功後覆寫現檔並把原始 JSON 備份到 `backups/`
+- 目前 schema version 為 10
+- `loadPet` 會自動將 v2~v9 存檔升級到 v10，成功後覆寫現檔並把原始 JSON 備份到 `backups/`
 
 ### `src/simulate.ts`
 - 推進經過時間
@@ -64,6 +64,7 @@ My Pet Hero 採用 query-time simulation：
 - 村莊整補
 - 迷宮 expedition 建立與推進
 - room outcome、reward、return flow
+- run-level narrative state、story beats、張力追蹤
 
 ### `src/dungeons.ts`
 - 迷宮模板資料
@@ -111,6 +112,7 @@ State 內容目前包含：
 - `hero.equipment`（equipped / inventory / lastEquippedAt）
 - `hero.dungeon`（location / currentDungeon / currentExpedition / expeditionHistory / village）
 - `hero.adventureLog`
+- `currentExpedition.narrative` / `expeditionHistory[].narrative` / `adventureLog[].narrative`
 - `history`
 
 ## Expedition architecture
@@ -127,6 +129,14 @@ State 內容目前包含：
    - defeat 回村
    - escape 回村
 6. 完成的 expedition 會被搬到 `expeditionHistory`
+7. 每次房間結算後，同步更新 expedition narrative state，讓 run 有 setup → pressure → climax → return 的連續弧線
+
+目前 `src/narrative.ts` 會把 deterministic 狀態翻成敘事骨架，而不是單純在 wrapper 補 prose。這層會追蹤：
+
+- `premise`：這趟地下城的開場命題
+- `tension` / `arc`：目前故事張力與所處段落
+- `partyCondition`：以 HP / energy 為基底的隊伍狀態判讀
+- `beats[]`：每次房間推進後留下的關鍵轉折
 
 ## Equipment and loot architecture
 
@@ -160,8 +170,9 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - level / exp / gold / attributes / needs
 - equipment / equipmentSummary
 - `headline` / `quickStatus`
+- `expeditionNarrative` / `narrativeDigest`
 - recent events / adventures
-- `--report` 時額外附加文字摘要（含村莊活動敘述）
+- `--report` 時額外附加文字摘要（含村莊活動敘述與探險故事線）
 
 ### `saves`
 包含：
@@ -211,14 +222,15 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - `doctor` 可輸出實際生效的 cadence config，方便驗證 runtime bucket 設定
 - `validate:chat` 可驗證 slash-style command routing 與 default hero persistence
 
-另外要注意：目前 migration 支援 v2~v9。比 v2 更舊，或未來比 v9 更新的存檔，會明確拒絕載入。
+另外要注意：目前 migration 支援 v2~v10。比 v2 更舊，或未來比 v10 更新的存檔，會明確拒絕載入。
 
 ## Save migration policy
 
-- 目前支援從 v2、v3、v4、v5、v6、v7、v8 自動升級到 v9
+- 目前支援從 v2、v3、v4、v5、v6、v7、v8、v9 自動升級到 v10
 - migration 在 `loadPet` 發生，先做 step-by-step upgrade，再用現行 zod schema 驗證
 - 若有升級，會先把原始 JSON 備份到同資料夾下的 `backups/`，再覆寫主存檔
-- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以升級鏈中會先補齊 expedition、village、equipment 與戰鬥缺省欄位，再一路升到 v9
+- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以升級鏈中會先補齊 expedition、village、equipment 與戰鬥缺省欄位，再一路升到 v10
+- v10 追加 expedition narrative schema，會替舊探險紀錄補上空的 narrative 結構，讓後續 story digest 可穩定輸出
 - 小於 v2 或高於目前版本的存檔會直接拒絕載入，避免猜錯資料語意
 
 ## Next technical directions
