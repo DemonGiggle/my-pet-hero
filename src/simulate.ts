@@ -108,7 +108,7 @@ export function simulatePet(pet: PetState, nowIso = new Date().toISOString()): S
   const summary = latestExpedition?.completed
     ? `${pet.name} 剛完成一趟從 ${latestExpedition.dungeonName} 歸來的探險。`
     : pet.hero.dungeon.location === 'village' && currentVillageActivity
-      ? `${pet.name} 最近在村裡忙著${currentVillageActivity.summary}。`
+      ? `${pet.name} 最近在村裡忙著${currentVillageActivity.summary}，${currentVillageActivity.detail}`
       : events.length > 0
         ? events[events.length - 1].text
         : `${pet.name}這段時間一邊生活、一邊穩穩成長。`;

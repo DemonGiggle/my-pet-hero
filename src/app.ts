@@ -94,9 +94,18 @@ function summarizeRecentStoryBeats(pet: PetState): string[] {
     }
   }
 
+  if (pet.hero.dungeon.location === 'village' && pet.hero.dungeon.village.currentActivity) {
+    const activity = pet.hero.dungeon.village.currentActivity;
+    beats.push(`現在在村裡忙著「${activity.label}」，${activity.detail}`);
+  }
+
   if (beats.length < 2) {
     for (const activity of villageActivities) {
-      beats.push(`${pet.name} 回到村裡後沒有閒著，還在用「${activity.label}」慢慢把節奏收回來。`);
+      const effectText = Object.entries(activity.effects)
+        .filter(([, value]) => typeof value === 'number' && value !== 0)
+        .map(([key, value]) => `${key} ${value! > 0 ? '+' : ''}${value}`)
+        .join(' / ');
+      beats.push(`${pet.name} 回到村裡後沒有閒著，還在用「${activity.label}」慢慢把節奏收回來${effectText ? `（${effectText}）` : ''}。`);
       if (beats.length >= 3) break;
     }
   }

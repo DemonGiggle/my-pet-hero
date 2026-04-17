@@ -85,6 +85,7 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
 
 function runVillageRecovery(pet: PetState, at: string, arrivesAtVillage = true): string[] {
   const notes: string[] = [];
+  const currentActivity = pet.hero.dungeon.village.currentActivity;
   if (arrivesAtVillage) {
     pet.hero.dungeon.location = 'village';
     pet.hero.dungeon.village.lastVisitedAt = at;
@@ -106,6 +107,21 @@ function runVillageRecovery(pet: PetState, at: string, arrivesAtVillage = true):
     pet.needs.thirst = clamp(pet.needs.thirst - 24);
     pet.hero.dungeon.village.supplies.water -= 1;
     notes.push('補滿了水袋，也順便解了渴。');
+  }
+  if (currentActivity) {
+    if (currentActivity.tags.includes('rest') && pet.needs.energy < 90) {
+      pet.needs.energy = clamp(pet.needs.energy + 4);
+      notes.push(`村裡的「${currentActivity.label}」讓精神多撐了一截。`);
+    }
+    if (currentActivity.tags.includes('supply')) {
+      if (pet.needs.hunger > 30) pet.needs.hunger = clamp(pet.needs.hunger - 4);
+      if (pet.needs.thirst > 30) pet.needs.thirst = clamp(pet.needs.thirst - 4);
+      notes.push(`剛做完的「${currentActivity.label}」把補給節奏接上了。`);
+    }
+    if (currentActivity.tags.includes('ritual') || currentActivity.tags.includes('study')) {
+      pet.needs.mood = clamp(pet.needs.mood + 2);
+      notes.push(`那股「${currentActivity.label}」的餘韻還留著，判斷也更穩。`);
+    }
   }
   pet.needs.mood = clamp(pet.needs.mood + (notes.length > 0 ? 6 : 2));
   return notes;
