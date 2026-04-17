@@ -43,9 +43,9 @@ const CLASS_ACCESSORIES: Record<HeroClass, string[]> = {
 
 function rarityFromSeed(seed: string): 'common' | 'uncommon' | 'rare' | 'epic' {
   const roll = hashToUnit(seed);
-  if (roll > 0.97) return 'epic';
-  if (roll > 0.82) return 'rare';
-  if (roll > 0.55) return 'uncommon';
+  if (roll > 0.985) return 'epic';
+  if (roll > 0.87) return 'rare';
+  if (roll > 0.52) return 'uncommon';
   return 'common';
 }
 
@@ -133,7 +133,7 @@ export function listInventory(pet: PetState): string[] {
 }
 
 export function maybeGenerateLoot(pet: PetState, floor: number, at: string, roomType?: string, dungeonTemplateKey?: string) {
-  const chanceBase = roomType === 'boss' ? 0.95 : roomType === 'elite' ? 0.68 : roomType === 'treasure' ? 0.76 : 0.42;
+  const chanceBase = roomType === 'boss' ? 0.98 : roomType === 'elite' ? 0.74 : roomType === 'treasure' ? 0.82 : 0.48;
   if (hashToUnit(`${pet.seed}:loot-drop:${at}:${floor}:${roomType ?? 'room'}`) > chanceBase) return null;
 
   const slot = pickOne([...EQUIPMENT_SLOTS], hashToUnit(`${pet.seed}:loot-slot:${at}:${floor}`));
@@ -150,15 +150,15 @@ export function maybeGenerateLoot(pet: PetState, floor: number, at: string, room
 
   const bonuses = slot === 'weapon'
     ? heroClass === 'mage'
-      ? { magicAttack: 4 + baseValue, accuracy: Number((0.01 * mult).toFixed(3)) }
-      : { attack: 4 + baseValue, crit: Number((0.008 * mult).toFixed(3)) }
+      ? { magicAttack: 5 + baseValue, accuracy: Number((0.012 * mult).toFixed(3)) }
+      : { attack: 5 + baseValue, crit: Number((0.01 * mult).toFixed(3)) }
     : slot === 'armor'
-      ? { maxHealth: 5 + baseValue * 2, defense: 2 + Math.round(baseValue * 0.7), magicDefense: heroClass === 'mage' ? 2 + Math.round(baseValue * 0.6) : 1 + Math.round(baseValue * 0.35) }
+      ? { maxHealth: 6 + baseValue * 2, defense: 2 + Math.round(baseValue * 0.8), magicDefense: heroClass === 'mage' ? 2 + Math.round(baseValue * 0.7) : 1 + Math.round(baseValue * 0.4) }
       : heroClass === 'rogue'
-        ? { evasion: Number((0.012 * mult).toFixed(3)), crit: Number((0.01 * mult).toFixed(3)), attack: 1 + Math.round(baseValue * 0.3) }
+        ? { evasion: Number((0.014 * mult).toFixed(3)), crit: Number((0.012 * mult).toFixed(3)), attack: 1 + Math.round(baseValue * 0.35) }
         : heroClass === 'mage'
-          ? { magicAttack: 2 + Math.round(baseValue * 0.7), magicDefense: 1 + Math.round(baseValue * 0.4), accuracy: Number((0.008 * mult).toFixed(3)) }
-          : { attack: 1 + Math.round(baseValue * 0.4), defense: 1 + Math.round(baseValue * 0.5), maxHealth: 4 + baseValue };
+          ? { magicAttack: 3 + Math.round(baseValue * 0.8), magicDefense: 1 + Math.round(baseValue * 0.5), accuracy: Number((0.01 * mult).toFixed(3)) }
+          : { attack: 1 + Math.round(baseValue * 0.5), defense: 1 + Math.round(baseValue * 0.6), maxHealth: 5 + baseValue };
 
   return {
     id: newId(`${pet.seed}:${at}:${slot}:${rarity}:${floor}`),

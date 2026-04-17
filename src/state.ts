@@ -611,9 +611,12 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
       const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
       const currentDungeon = isRecord(dungeon.currentDungeon) ? dungeon.currentDungeon : undefined;
       if (currentDungeon) {
+        const entranceRoomId = Array.isArray(currentDungeon.rooms) && isRecord(currentDungeon.rooms[0]) && typeof currentDungeon.rooms[0].id === 'string'
+          ? currentDungeon.rooms[0].id
+          : 'room-1';
         currentDungeon.pathTakenRoomIds = Array.isArray(currentDungeon.pathTakenRoomIds)
-          ? currentDungeon.pathTakenRoomIds
-          : [typeof currentDungeon.currentRoomId === 'string' ? currentDungeon.currentRoomId : 'room-1'];
+          ? currentDungeon.pathTakenRoomIds.filter((roomId, index) => !(index === 0 && roomId === entranceRoomId))
+          : [];
         currentDungeon.modifiers = Array.isArray(currentDungeon.modifiers) ? currentDungeon.modifiers : [];
         currentDungeon.rooms = Array.isArray(currentDungeon.rooms)
           ? currentDungeon.rooms.map(room => isRecord(room)

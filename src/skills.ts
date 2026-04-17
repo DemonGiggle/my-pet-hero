@@ -10,7 +10,7 @@ export const SKILLS: Record<HeroClass, SkillDefinition[]> = {
       target: 'enemy',
       effectKind: 'damage',
       damageType: 'physical',
-      powerMultiplier: 1.75,
+      powerMultiplier: 1.28,
       hitBonus: 0.08,
       cooldownTurns: 3
     },
@@ -34,7 +34,7 @@ export const SKILLS: Record<HeroClass, SkillDefinition[]> = {
       target: 'enemy',
       effectKind: 'damage',
       damageType: 'physical',
-      powerMultiplier: 1.45,
+      powerMultiplier: 1.08,
       hitBonus: 0.12,
       critBonus: 0.2,
       cooldownTurns: 2
@@ -59,7 +59,7 @@ export const SKILLS: Record<HeroClass, SkillDefinition[]> = {
       target: 'enemy',
       effectKind: 'damage',
       damageType: 'magic',
-      powerMultiplier: 1.85,
+      powerMultiplier: 1.08,
       hitBonus: 0.06,
       cooldownTurns: 3
     },

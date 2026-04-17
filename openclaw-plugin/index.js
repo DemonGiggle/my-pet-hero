@@ -3,8 +3,13 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { Type } from '@sinclair/typebox';
-import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
+
+let definePluginEntry;
+try {
+  ({ definePluginEntry } = await import('openclaw/plugin-sdk/plugin-entry'));
+} catch {
+  definePluginEntry = (entry) => entry;
+}
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -242,11 +247,24 @@ export default definePluginEntry({
     api.registerTool({
       name: TOOL_NAME,
       description: 'Execute deterministic My Pet Hero `/pet` chat commands such as status, report, inventory, feed, play, clean, heroes, and use.',
-      parameters: Type.Object({
-        command: Type.Optional(Type.String({ description: 'Raw arguments after /pet, for example `status`, `report asaki`, or `use asaki`.' })),
-        commandName: Type.Optional(Type.String({ description: 'OpenClaw native command name. Provided automatically for skill command dispatch.' })),
-        skillName: Type.Optional(Type.String({ description: 'Source skill name. Provided automatically for skill command dispatch.' }))
-      }),
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          command: {
+            type: 'string',
+            description: 'Raw arguments after /pet, for example `status`, `report asaki`, or `use asaki`.'
+          },
+          commandName: {
+            type: 'string',
+            description: 'OpenClaw native command name. Provided automatically for skill command dispatch.'
+          },
+          skillName: {
+            type: 'string',
+            description: 'Source skill name. Provided automatically for skill command dispatch.'
+          }
+        }
+      },
       async execute(_toolCallId, params) {
         const commandName = getString(params.commandName).toLowerCase();
         const isPetImageCommand = commandName === 'pet_image';

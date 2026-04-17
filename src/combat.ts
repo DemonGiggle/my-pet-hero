@@ -171,7 +171,7 @@ function buildHeroSnapshot(pet: PetState): CombatantSnapshot {
 }
 
 function buildEnemySnapshot(enemy: EnemyTemplate, floor: number): CombatantSnapshot {
-  const scale = 1 + (floor - 1) * 0.16;
+  const scale = 1 + (floor - 1) * 0.2;
   const maxHealth = Math.round(enemy.baseHealth * scale);
   return {
     name: enemy.label,
@@ -246,6 +246,108 @@ function shouldUseSkill(skill: SkillDefinition, hero: CombatantSnapshot, enemy: 
   if (skill.effectKind === 'heal') return hero.health / hero.maxHealth < 0.58 && desire > 0.28;
   if (skill.effectKind === 'shield') return hero.shield < 6 && enemy.health > 0 && desire > 0.35;
   return desire > 0.42;
+}
+
+function applyEnemyAbilityPrelude(
+  enemy: EnemyTemplate,
+  enemyState: CombatantSnapshot,
+  hero: CombatantSnapshot,
+  round: number,
+  seed: string,
+  floor: number
+): CombatTurnLog[] {
+  if (round !== 1 || !enemy.abilities || enemy.abilities.length === 0) return [];
+
+  const turns: CombatTurnLog[] = [];
+
+  for (const ability of enemy.abilities) {
+    if (ability === 'ambush') {
+      const strike = rollAttack(enemyState, hero, 'enemy', round, `${seed}:ability:ambush`, {
+        damageType: 'physical',
+        powerMultiplier: 0.82,
+        hitBonus: 0.08
+      });
+      turns.push({
+        ...strike,
+        text: `${enemy.label} 先以突襲搶節奏。${strike.text}`
+      });
+      continue;
+    }
+
+    if (ability === 'spell-burst') {
+      const burst = rollAttack(enemyState, hero, 'enemy', round, `${seed}:ability:spell-burst`, {
+        damageType: 'magic',
+        powerMultiplier: 0.9,
+        hitBonus: 0.05,
+        critBonus: 0.05
+      });
+      turns.push({
+        ...burst,
+        text: `${enemy.label} 先放出一輪法術爆發。${burst.text}`
+      });
+      continue;
+    }
+
+    if (ability === 'fear') {
+      hero.accuracy = clamp(hero.accuracy - 0.05, 0.2, 0.97);
+      hero.evasion = clamp(hero.evasion - 0.03, 0.02, 0.35);
+      hero.crit = clamp(hero.crit - 0.03, 0.03, 0.35);
+      turns.push({
+        round,
+        actor: 'enemy',
+        result: 'skill',
+        damageType: enemy.damageTypeBias,
+        damage: 0,
+        text: `${enemy.label} 散發壓迫感，${hero.name} 的判斷變得保守。`
+      });
+      continue;
+    }
+
+    if (ability === 'curse-flare') {
+      const flare = rollAttack(enemyState, hero, 'enemy', round, `${seed}:ability:curse-flare`, {
+        damageType: 'magic',
+        powerMultiplier: 1.0,
+        hitBonus: 0.06,
+        critBonus: 0.04
+      });
+      hero.magicDefense = Math.max(0, hero.magicDefense - 2);
+      turns.push({
+        ...flare,
+        text: `${enemy.label} 的詛咒火光灼上來。${flare.text}`
+      });
+      continue;
+    }
+
+    if (ability === 'reflective-shell') {
+      const shield = Math.max(4, Math.round(enemyState.maxHealth * 0.18));
+      enemyState.shield += shield;
+      turns.push({
+        round,
+        actor: 'enemy',
+        result: 'skill',
+        damageType: enemy.damageTypeBias,
+        damage: 0,
+        text: `${enemy.label} 展開反射甲殼，獲得 ${shield} 點護盾。`
+      });
+      continue;
+    }
+
+    if (ability === 'ember-rush') {
+      const rush = rollAttack(enemyState, hero, 'enemy', round, `${seed}:ability:ember-rush`, {
+        damageType: 'physical',
+        powerMultiplier: 0.95,
+        hitBonus: 0.1,
+        critBonus: 0.04
+      });
+      enemyState.attack += Math.max(1, Math.round(floor * 0.3));
+      turns.push({
+        ...rush,
+        text: `${enemy.label} 以灼熱衝刺壓上來。${rush.text}`
+      });
+    }
+  }
+
+  return turns;
 }
 
 function useSkill(
@@ -336,8 +438,32 @@ export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyK
   const maxRounds = 6;
   const skillCooldowns = new Map<string, number>();
   const heroSkills = getSkillsForClass(pet.hero.classProgress.current).filter((skill) => (skill.minLevel ?? 1) <= pet.hero.level);
+  let enemyPreludeNote = '';
 
   for (let round = 1; round <= maxRounds; round++) {
+    const openingTurns = applyEnemyAbilityPrelude(enemy, enemyState, hero, round, `${pet.seed}:${at}:${enemy.key}`, floor);
+    if (openingTurns.length > 0) {
+      if (!enemyPreludeNote) enemyPreludeNote = openingTurns.map((turn) => turn.text).join(' ');
+      turns.push(...openingTurns);
+      if (hero.health <= 0) {
+        const healthLoss = hero.maxHealth;
+        return {
+          outcome: 'defeat',
+          enemy,
+          hero,
+          enemyState,
+          rounds: round,
+          turns,
+          skillsUsed,
+          expGained: Math.max(1, Math.round(enemy.expReward * 0.25)),
+          goldGained: 0,
+          healthLoss,
+          moodDelta: -12,
+          text: `${pet.name} 一進場就被 ${enemy.label} 壓制，最後只能撤退。${enemyPreludeNote ? ` ${enemyPreludeNote}` : ''}`
+        };
+      }
+    }
+
     let heroTurn: CombatTurnLog;
     const availableSkills = heroSkills.filter((skill) => (skillCooldowns.get(skill.key) ?? 0) <= round);
     const chosenSkill = availableSkills.find((skill) => shouldUseSkill(skill, hero, enemyState, round, `${pet.seed}:${at}:${enemy.key}`));
@@ -355,7 +481,7 @@ export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyK
       const expGained = enemy.expReward + floor * 2 + skillsUsed.length;
       const goldGained = enemy.goldReward + Math.max(0, Math.round(floor * 1.5));
       const healthLoss = hero.maxHealth - hero.health;
-      return {
+    return {
         outcome: 'win',
         enemy,
         hero,
@@ -363,11 +489,11 @@ export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyK
         rounds: round,
         turns,
         skillsUsed,
-        expGained,
-        goldGained,
+        expGained: Math.round(expGained * 1.05),
+        goldGained: Math.round(goldGained * 1.08),
         healthLoss,
         moodDelta: 7,
-        text: `${pet.name} 打倒了 ${enemy.label}。`
+        text: `${pet.name} 打倒了 ${enemy.label}。${enemyPreludeNote ? ` ${enemyPreludeNote}` : ''}`
       };
     }
 
@@ -384,10 +510,10 @@ export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyK
         turns,
         skillsUsed,
         expGained: Math.max(1, Math.round(enemy.expReward * 0.35)),
-        goldGained: 0,
+        goldGained: Math.max(0, Math.round(enemy.goldReward * 0.08)),
         healthLoss,
         moodDelta: -12,
-        text: `${pet.name} 被 ${enemy.label} 擊退了。`
+        text: `${pet.name} 被 ${enemy.label} 擊退了。${enemyPreludeNote ? ` ${enemyPreludeNote}` : ''}`
       };
     }
   }
@@ -402,12 +528,12 @@ export function runCombat(pet: PetState, floor: number, at: string, forcedEnemyK
     rounds: maxRounds,
     turns,
     skillsUsed,
-    expGained: outcome === 'win' ? enemy.expReward + floor + skillsUsed.length : Math.max(2, Math.round(enemy.expReward * 0.5)),
-    goldGained: outcome === 'win' ? enemy.goldReward + floor : Math.max(0, Math.round(enemy.goldReward * 0.35)),
+    expGained: outcome === 'win' ? Math.round((enemy.expReward + floor + skillsUsed.length) * 1.05) : Math.max(2, Math.round(enemy.expReward * 0.5)),
+    goldGained: outcome === 'win' ? Math.round((enemy.goldReward + floor) * 1.08) : Math.max(0, Math.round(enemy.goldReward * 0.4)),
     healthLoss: hero.maxHealth - hero.health,
     moodDelta: outcome === 'win' ? 5 : -3,
     text: outcome === 'win'
-      ? `${pet.name} 和 ${enemy.label} 纏鬥後取得勝利。`
-      : `${pet.name} 和 ${enemy.label} 纏鬥一陣後撤退。`
+      ? `${pet.name} 和 ${enemy.label} 纏鬥後取得勝利。${enemyPreludeNote ? ` ${enemyPreludeNote}` : ''}`
+      : `${pet.name} 和 ${enemy.label} 纏鬥一陣後撤退。${enemyPreludeNote ? ` ${enemyPreludeNote}` : ''}`
   };
 }

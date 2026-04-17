@@ -217,7 +217,7 @@ export function generateDungeonInstance(params: { pet: PetState; floor: number; 
     currentRoomId: rooms[0]?.id ?? 'room-1',
     discoveredRoomIds: rooms.slice(0, 1).map(room => room.id),
     clearedRoomIds: rooms.filter(room => room.cleared).map(room => room.id),
-    pathTakenRoomIds: rooms[0] ? [rooms[0].id] : [],
+    pathTakenRoomIds: [],
     seed: seedKey,
     description: template.description,
     modifiers
