@@ -1,4 +1,5 @@
 import { AdventureLog, DungeonInstance, DungeonModifier, DungeonRoom, ExpeditionNarrativeBeat, ExpeditionNarrativeState, ExpeditionSummary, PetState } from './types.js';
+import { buildGoalPremise, summarizeGoal } from './expedition-story.js';
 
 function clampNarrativeTension(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -50,10 +51,11 @@ function modifierMood(modifiers: DungeonModifier[]): string {
   return `一路都籠著${modifiers.map(modifier => modifier.label).join('、')}的氣味`;
 }
 
-export function createExpeditionNarrative(params: { pet: PetState; dungeon: DungeonInstance }): ExpeditionNarrativeState {
-  const { pet, dungeon } = params;
+export function createExpeditionNarrative(params: { pet: PetState; dungeon: DungeonInstance; expedition?: ExpeditionSummary }): ExpeditionNarrativeState {
+  const { pet, dungeon, expedition } = params;
+  const goalPremise = buildGoalPremise(expedition?.goal);
   return {
-    premise: `${pet.name} 走進 ${dungeon.name}，${dungeon.description}${modifierMood(dungeon.modifiers)}。`,
+    premise: `${pet.name} 走進 ${dungeon.name}，${dungeon.description}${modifierMood(dungeon.modifiers)}。${goalPremise ? ` ${goalPremise}。` : ''}`,
     tension: 28,
     arc: 'fresh',
     partyCondition: conditionFromPet(pet),
@@ -61,10 +63,12 @@ export function createExpeditionNarrative(params: { pet: PetState; dungeon: Dung
       {
         at: new Date().toISOString(),
         phase: 'setup',
-        title: '踏入地城',
-        text: `${pet.name} 才剛跨過 ${dungeon.name} 的入口，先把呼吸與步伐收穩，準備摸清這趟的節奏。`,
+        title: expedition?.goal ? `踏入地城，背著${expedition.goal.goalLabel}` : '踏入地城',
+        text: expedition?.goal
+          ? `${pet.name} 才剛跨過 ${dungeon.name} 的入口，就先把「${expedition.goal.goalLabel}」這條主線牢牢記住，準備順著 ${expedition.goal.clueText} 往下查。`
+          : `${pet.name} 才剛跨過 ${dungeon.name} 的入口，先把呼吸與步伐收穩，準備摸清這趟的節奏。`,
         relatedRoomId: dungeon.rooms[0]?.id,
-        stateTags: [dungeon.theme, 'expedition-start', ...(dungeon.modifiers.map(modifier => modifier.key))]
+        stateTags: [dungeon.theme, 'expedition-start', ...(expedition?.goal ? ['goal-active', expedition.goal.key] : []), ...(dungeon.modifiers.map(modifier => modifier.key))]
       }
     ],
     latestBeat: undefined
@@ -190,6 +194,7 @@ export function renderNarrativeDigest(expedition?: ExpeditionSummary | null): st
     `【本趟故事線】${narrative.premise}`,
     `【敘事張力】${narrative.tension}/100，${tensionLine(narrative.arc)}，${conditionLine(narrative.partyCondition)}。`
   ];
+  lines.push(...summarizeGoal(expedition.goal).map(line => `【任務主線】${line}`));
   if (beats.length > 0) {
     lines.push('【關鍵轉折】');
     for (const beat of beats) {

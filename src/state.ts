@@ -8,7 +8,7 @@ import { SPECIES } from './species.js';
 import { applyClassAttributeBonus, recommendClass, getClassAffinity } from './classes.js';
 import { clamp, expToNextLevel, randomSeed } from './utils.js';
 
-export const CURRENT_SAVE_VERSION = 10;
+export const CURRENT_SAVE_VERSION = 11;
 
 const needsSchema = z.object({
   health: z.number(),
@@ -194,6 +194,32 @@ const expeditionNarrativeStateSchema = z.object({
   beats: z.array(expeditionNarrativeBeatSchema).default([])
 });
 
+const expeditionGoalCallbackSchema = z.object({
+  key: z.string(),
+  title: z.string(),
+  setupPhase: z.enum(['setup', 'turning-point']),
+  resolvePhase: z.enum(['turning-point', 'climax', 'return']),
+  setupText: z.string().default(''),
+  resolveText: z.string().default(''),
+  setupResolvedAtRoomCount: z.number().default(1),
+  resolveAfterRoomCount: z.number().default(2),
+  status: z.enum(['pending', 'seeded', 'resolved']).default('pending')
+});
+
+const expeditionGoalStateSchema = z.object({
+  key: z.enum(['rescue', 'retrieve', 'investigate', 'rival']),
+  goalLabel: z.string(),
+  motive: z.string(),
+  target: z.string(),
+  setupText: z.string().default(''),
+  clueText: z.string().default(''),
+  resolutionText: z.string().default(''),
+  successSummary: z.string().default(''),
+  failureSummary: z.string().default(''),
+  progress: z.enum(['active', 'resolved', 'failed']).default('active'),
+  callbacks: z.array(expeditionGoalCallbackSchema).default([])
+});
+
 const petStateSchema = z.object({
   version: z.number(),
   id: z.string(),
@@ -246,7 +272,8 @@ const petStateSchema = z.object({
         returnSummary: z.string().optional(),
         completed: z.boolean().default(false),
         logs: z.array(z.any()),
-        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] })
+        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] }),
+        goal: expeditionGoalStateSchema.optional()
       }).optional(),
       expeditionHistory: z.array(z.object({
         id: z.string(),
@@ -265,7 +292,8 @@ const petStateSchema = z.object({
         returnSummary: z.string().optional(),
         completed: z.boolean().default(false),
         logs: z.array(z.any()),
-        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] })
+        narrative: expeditionNarrativeStateSchema.default({ premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] }),
+        goal: expeditionGoalStateSchema.optional()
       })).default([]),
       village: z.object({
         name: z.string().default('晨霧村'),
@@ -397,7 +425,22 @@ function ensureExpeditionShape(expedition: unknown): unknown {
           latestBeat: isRecord(expedition.narrative.latestBeat) ? expedition.narrative.latestBeat : undefined,
           beats: Array.isArray(expedition.narrative.beats) ? expedition.narrative.beats : []
         }
-      : { premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] }
+      : { premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] },
+    goal: isRecord(expedition.goal)
+      ? {
+          key: typeof expedition.goal.key === 'string' ? expedition.goal.key : 'investigate',
+          goalLabel: typeof expedition.goal.goalLabel === 'string' ? expedition.goal.goalLabel : '',
+          motive: typeof expedition.goal.motive === 'string' ? expedition.goal.motive : '',
+          target: typeof expedition.goal.target === 'string' ? expedition.goal.target : '',
+          setupText: typeof expedition.goal.setupText === 'string' ? expedition.goal.setupText : '',
+          clueText: typeof expedition.goal.clueText === 'string' ? expedition.goal.clueText : '',
+          resolutionText: typeof expedition.goal.resolutionText === 'string' ? expedition.goal.resolutionText : '',
+          successSummary: typeof expedition.goal.successSummary === 'string' ? expedition.goal.successSummary : '',
+          failureSummary: typeof expedition.goal.failureSummary === 'string' ? expedition.goal.failureSummary : '',
+          progress: typeof expedition.goal.progress === 'string' ? expedition.goal.progress : 'active',
+          callbacks: Array.isArray(expedition.goal.callbacks) ? expedition.goal.callbacks : []
+        }
+      : undefined
   };
 }
 
@@ -685,6 +728,20 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
       hero.dungeon = dungeon;
       migrated.hero = hero;
       migrated.version = 10;
+      changed = true;
+      continue;
+    }
+
+    if (currentVersion === 10) {
+      const hero = isRecord(migrated.hero) ? migrated.hero : {};
+      const dungeon = isRecord(hero.dungeon) ? hero.dungeon : {};
+      dungeon.currentExpedition = dungeon.currentExpedition ? ensureExpeditionShape(dungeon.currentExpedition) : undefined;
+      dungeon.expeditionHistory = Array.isArray(dungeon.expeditionHistory)
+        ? dungeon.expeditionHistory.map(ensureExpeditionShape)
+        : [];
+      hero.dungeon = dungeon;
+      migrated.hero = hero;
+      migrated.version = 11;
       changed = true;
       continue;
     }

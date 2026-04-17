@@ -95,6 +95,7 @@ function summarizeRecentStoryBeats(pet: PetState): string[] {
 
   if (currentExpedition) {
     beats.push(`${currentExpedition.dungeonName} 這趟還沒結束，最深處的壓力仍掛在身上。`);
+    if (currentExpedition.goal) beats.push(`這趟明確是為了${currentExpedition.goal.goalLabel}，目標指向 ${currentExpedition.goal.target}。`);
     beats.push(...buildExpeditionStorySummary(currentExpedition));
   }
 
@@ -264,6 +265,12 @@ function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expedi
     `Boss：${expedition.bossDefeated ? '已擊破' : '未擊破'}`,
     `完成度：${expedition.completed ? '本次探險已完整結束' : '仍在探索中'}`
   ];
+  if (expedition.goal) {
+    lines.push(`任務主線：${expedition.goal.goalLabel} / 目標 ${expedition.goal.target}`);
+    lines.push(`任務動機：${expedition.goal.motive}`);
+    lines.push(`任務進度：${expedition.goal.progress}`);
+    lines.push(`前段線索：${expedition.goal.clueText}`);
+  }
   if (expedition.villagePreparation.length > 0) lines.push(`村莊整備：${expedition.villagePreparation.join('、')}`);
   if (expedition.returnSummary) lines.push(`回村整理：${expedition.returnSummary}`);
   if (expedition.logs.length > 0) {

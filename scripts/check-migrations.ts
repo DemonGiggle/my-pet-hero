@@ -217,7 +217,20 @@ function makeV6Late(id: string) {
       totalGoldGained: 18,
       villagePreparation: ['restocked'],
       returnSummary: 'Back safely.',
-      logs: []
+      logs: [],
+      goal: {
+        key: 'investigate',
+        goalLabel: '調查異常',
+        motive: '要查清楚地城失衡的來源。',
+        target: '異常源頭',
+        setupText: 'legacy setup',
+        clueText: 'legacy clue',
+        resolutionText: 'legacy resolution',
+        successSummary: 'legacy success',
+        failureSummary: 'legacy failure',
+        progress: 'active',
+        callbacks: []
+      }
     },
     expeditionHistory: [
       {
@@ -234,7 +247,20 @@ function makeV6Late(id: string) {
         totalExpGained: 10,
         totalGoldGained: 7,
         villagePreparation: [],
-        logs: []
+        logs: [],
+        goal: {
+          key: 'retrieve',
+          goalLabel: '取回遺物',
+          motive: '要把村裡急需的物件帶回來。',
+          target: '封印鑰匙',
+          setupText: 'legacy setup',
+          clueText: 'legacy clue',
+          resolutionText: 'legacy resolution',
+          successSummary: 'legacy success',
+          failureSummary: 'legacy failure',
+          progress: 'resolved',
+          callbacks: []
+        }
       }
     ]
   } as typeof save.hero.dungeon;
@@ -276,6 +302,8 @@ async function main() {
     assert.equal(v6Late.version, CURRENT_SAVE_VERSION);
     assert.equal(v6Late.hero.dungeon.currentExpedition?.completed, false);
     assert.equal(v6Late.hero.dungeon.expeditionHistory[0]?.completed, false);
+    assert.ok(v6Late.hero.dungeon.currentExpedition?.goal);
+    assert.equal(v6Late.hero.dungeon.currentExpedition?.goal?.callbacks.length ?? 0, 0);
 
     const backupDir = path.join(tmpRoot, 'backups');
     const backups = await readdir(backupDir);

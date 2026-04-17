@@ -130,8 +130,16 @@ State 內容目前包含：
    - escape 回村
 6. 完成的 expedition 會被搬到 `expeditionHistory`
 7. 每次房間結算後，同步更新 expedition narrative state，讓 run 有 setup → pressure → climax → return 的連續弧線
+8. run 建立時會同步產生 `expedition.goal`，把 mission spine, motive, target, clue 與 callback chain 固定到該次 expedition state
+9. callback chain 會依房間推進與 narrative phase 觸發 setup / resolve，讓前段 clue 可以在同一趟 run 的後段被 deterministic 地回收
 
 目前 `src/narrative.ts` 會把 deterministic 狀態翻成敘事骨架，而不是單純在 wrapper 補 prose。這層會追蹤：
+
+另外 `src/expedition-story.ts` 會處理 run-level 的 mission spine 與 callback payoff，負責：
+- 依 seed / dungeon state 決定 mission 類型（rescue / retrieve / investigate / rival）
+- 把 motive / target / clue 固定在 expedition goal state
+- 在早段 beat 埋下 callback，並在後段或返程 beat 回收
+- 讓 CLI / report 可以直接讀 goal progress，而不是重新推論
 
 - `premise`：這趟地下城的開場命題
 - `tension` / `arc`：目前故事張力與所處段落
@@ -222,15 +230,16 @@ CLI 目前主要輸出是 JSON payload，視需要附帶 PNG 路徑。
 - `doctor` 可輸出實際生效的 cadence config，方便驗證 runtime bucket 設定
 - `validate:chat` 可驗證 slash-style command routing 與 default hero persistence
 
-另外要注意：目前 migration 支援 v2~v10。比 v2 更舊，或未來比 v10 更新的存檔，會明確拒絕載入。
+另外要注意：目前 migration 支援 v2~v11。比 v2 更舊，或未來比 v11 更新的存檔，會明確拒絕載入。
 
 ## Save migration policy
 
-- 目前支援從 v2、v3、v4、v5、v6、v7、v8、v9 自動升級到 v10
+- 目前支援從 v2、v3、v4、v5、v6、v7、v8、v9、v10 自動升級到 v11
 - migration 在 `loadPet` 發生，先做 step-by-step upgrade，再用現行 zod schema 驗證
 - 若有升級，會先把原始 JSON 備份到同資料夾下的 `backups/`，再覆寫主存檔
-- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以升級鏈中會先補齊 expedition、village、equipment 與戰鬥缺省欄位，再一路升到 v10
+- v6 因為歷史上有多次 schema 擴充但版本號沒同步增加，所以升級鏈中會先補齊 expedition、village、equipment 與戰鬥缺省欄位，再一路升到最新版
 - v10 追加 expedition narrative schema，會替舊探險紀錄補上空的 narrative 結構，讓後續 story digest 可穩定輸出
+- v11 追加 `expedition.goal` 與 callback 狀態，讓舊存檔也能被新任務主線系統安全讀取
 - 小於 v2 或高於目前版本的存檔會直接拒絕載入，避免猜錯資料語意
 
 ## Next technical directions

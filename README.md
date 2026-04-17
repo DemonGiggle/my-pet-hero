@@ -223,6 +223,10 @@ npm run dev -- doctor --id asaki
 
 ### 3. 有完整 expedition 狀態
 
+每趟 expedition 現在不只記錄進度，也會有一條 deterministic 任務主線。
+系統會在開局指定明確目標與動機，例如尋人、取回物件、調查異常、或與 rival 競速，並把這條 mission spine 存進 `currentExpedition.goal`。
+同一趟 run 裡，前段房間還會埋下 callback 狀態，後段在符合條件時回收，讓「先看到線索，後面再對上答案」變成 state-driven 流程，而不是單靠文案包裝。
+
 `status` payload 目前會包含：
 
 - `location`
@@ -263,6 +267,7 @@ npm run dev -- doctor --id asaki
 現在 `status` / `report` 也會多帶：
 
 - `expeditionNarrative` 當前或上一趟探險的敘事狀態
+- `currentExpedition.goal` / `expeditionHistory[].goal` 任務主線與 callback 狀態
 - `narrativeDigest` 已整理好的故事線摘要
 - `adventureLog[].narrative` 每個房間對應的 story beat
 
@@ -284,11 +289,12 @@ npm run dev -- doctor --id asaki
 
 ## 目前限制
 
-- v2~v9 舊存檔會在載入時自動 migration 到 v10，並先備份原始 JSON
+- v2~v10 舊存檔會在載入時自動 migration 到 v11，並先備份原始 JSON
 - `doctor` 目前提供的是 migration 策略與存檔概況，不是完整 repair tool
 - `dungeon-preview` 是預覽工具，不一定每次都會觸發探險
 - bitmap minimap / status card integration 還沒做，刻意先不硬塞進這輪
 - secret / rare rooms 還沒做
+- callback system 目前先支援單條 deterministic callback chain，還沒做多條並行伏筆
 - 還沒有 status effects、進階職業、技能成長、商店互動
 
 ## 文件

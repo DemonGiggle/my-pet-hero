@@ -296,6 +296,32 @@ export interface ExpeditionNarrativeState {
   beats: ExpeditionNarrativeBeat[];
 }
 
+export interface ExpeditionGoalCallback {
+  key: string;
+  title: string;
+  setupPhase: 'setup' | 'turning-point';
+  resolvePhase: 'turning-point' | 'climax' | 'return';
+  setupText: string;
+  resolveText: string;
+  setupResolvedAtRoomCount: number;
+  resolveAfterRoomCount: number;
+  status: 'pending' | 'seeded' | 'resolved';
+}
+
+export interface ExpeditionGoalState {
+  key: 'rescue' | 'retrieve' | 'investigate' | 'rival';
+  goalLabel: string;
+  motive: string;
+  target: string;
+  setupText: string;
+  clueText: string;
+  resolutionText: string;
+  successSummary: string;
+  failureSummary: string;
+  progress: 'active' | 'resolved' | 'failed';
+  callbacks: ExpeditionGoalCallback[];
+}
+
 export interface DungeonTrap {
   kind: TrapKind;
   severity: number;
@@ -381,6 +407,7 @@ export interface ExpeditionSummary {
   completed: boolean;
   logs: AdventureLog[];
   narrative: ExpeditionNarrativeState;
+  goal?: ExpeditionGoalState;
 }
 
 export interface VillageActivityRecord {

@@ -5,6 +5,7 @@ import { runCombat } from './combat.js';
 import { chooseNextDungeonRoom, generateDungeonInstance, getCurrentRoom, markRoomCleared, renderDungeonMinimap } from './dungeons.js';
 import { autoEquipLoot, maybeGenerateLoot } from './gear.js';
 import { appendNarrativeBeat, createExpeditionNarrative } from './narrative.js';
+import { applyExpeditionCallbacks, createExpeditionGoal } from './expedition-story.js';
 
 export function autoRecoverNeeds(pet: PetState, at: string): string[] {
   const notes: string[] = [];
@@ -58,12 +59,12 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
     pet.hero.dungeon.location = 'dungeon';
     pet.hero.dungeon.village.currentActivity = undefined;
     const prepNotes = runVillageRecovery(pet, at);
-    pet.hero.dungeon.currentExpedition = {
+    const expedition: PetState['hero']['dungeon']['currentExpedition'] = {
       id: `exp-${floor}-${Date.parse(at)}`,
       startedAt: at,
       dungeonName: created.name,
       floor,
-      status: 'exploring',
+      status: 'exploring' as const,
       roomsCleared: 0,
       totalRooms: created.rooms.length,
       bossDefeated: false,
@@ -72,8 +73,11 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
       villagePreparation: prepNotes,
       completed: false,
       logs: [],
-      narrative: createExpeditionNarrative({ pet, dungeon: created })
+      goal: createExpeditionGoal({ pet, dungeon: created }),
+      narrative: { premise: '', tension: 0, arc: 'fresh' as const, partyCondition: 'steady' as const, beats: [] }
     };
+    expedition.narrative = createExpeditionNarrative({ pet, dungeon: created, expedition });
+    pet.hero.dungeon.currentExpedition = expedition;
     return created;
   }
   return current;
@@ -349,6 +353,24 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
       log,
       pet
     });
+    const callbackResult = applyExpeditionCallbacks({
+      expedition: pet.hero.dungeon.currentExpedition,
+      log,
+      room,
+      phase: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase ?? 'turning-point'
+    });
+    pet.hero.dungeon.currentExpedition = callbackResult.expedition;
+    if (callbackResult.extraBeats.length > 0) {
+      const mergedBeats = [...pet.hero.dungeon.currentExpedition.narrative.beats, ...callbackResult.extraBeats].slice(-10);
+      pet.hero.dungeon.currentExpedition.narrative = {
+        ...pet.hero.dungeon.currentExpedition.narrative,
+        beats: mergedBeats,
+        latestBeat: callbackResult.extraBeats[callbackResult.extraBeats.length - 1] ?? pet.hero.dungeon.currentExpedition.narrative.latestBeat
+      };
+    }
+    if (callbackResult.rewardNotes.length > 0) {
+      log.rewards = [...(log.rewards ?? []), ...callbackResult.rewardNotes];
+    }
     log.narrative = {
       phase: pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'setup' ? 'arrival'
         : pet.hero.dungeon.currentExpedition.narrative.latestBeat?.phase === 'turning-point' ? 'discovery'
