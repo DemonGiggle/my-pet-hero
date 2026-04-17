@@ -4,13 +4,15 @@
   "description": "My Pet Hero (我的寵物勇者) — lightweight query-time virtual pet simulator",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run check:migrations && npm run check:app-services && npm run check:dungeon-flow",
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
     "render": "tsx src/cli.ts status",
     "create": "tsx src/cli.ts create",
     "check:migrations": "tsx scripts/check-migrations.ts",
+    "check:app-services": "tsx scripts/check-app-services.ts",
+    "check:dungeon-flow": "tsx scripts/check-dungeon-flow.ts",
     "validate:chat": "bash scripts/validate-chat.sh",
     "validate:openclaw": "node scripts/validate-openclaw-plugin.mjs"
   },

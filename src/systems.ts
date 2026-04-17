@@ -54,11 +54,11 @@ export function applyAutoStatGrowth(attributes: Attributes, level: number): Attr
 function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
   const current = pet.hero.dungeon.currentDungeon;
   if (!current || current.floor !== floor) {
+    const prepNotes = runVillageRecovery(pet, at, false);
     const created = generateDungeonInstance({ pet, floor, at });
     pet.hero.dungeon.currentDungeon = created;
     pet.hero.dungeon.location = 'dungeon';
     pet.hero.dungeon.village.currentActivity = undefined;
-    const prepNotes = runVillageRecovery(pet, at);
     const expedition: PetState['hero']['dungeon']['currentExpedition'] = {
       id: `exp-${floor}-${Date.parse(at)}`,
       startedAt: at,
@@ -83,10 +83,12 @@ function ensureDungeonInstance(pet: PetState, floor: number, at: string) {
   return current;
 }
 
-function runVillageRecovery(pet: PetState, at: string): string[] {
+function runVillageRecovery(pet: PetState, at: string, arrivesAtVillage = true): string[] {
   const notes: string[] = [];
-  pet.hero.dungeon.location = 'village';
-  pet.hero.dungeon.village.lastVisitedAt = at;
+  if (arrivesAtVillage) {
+    pet.hero.dungeon.location = 'village';
+    pet.hero.dungeon.village.lastVisitedAt = at;
+  }
   if (pet.needs.energy < 82) {
     pet.needs.energy = clamp(pet.needs.energy + 26);
     notes.push('在村莊旅店休息，恢復了不少精神。');
@@ -149,6 +151,29 @@ function modifierRoomText(modifiers: DungeonModifier[]): string {
   return ` 本層異常：${modifiers.map(modifier => modifier.label).join('、')}。`;
 }
 
+function resolveActiveDungeonRoom(pet: PetState, dungeon: ReturnType<typeof generateDungeonInstance>, at: string) {
+  const currentRoom = getCurrentRoom(dungeon) ?? dungeon.rooms[0];
+  if (!currentRoom) return null;
+  if (!currentRoom.cleared) return currentRoom;
+
+  const nextRoom = chooseNextDungeonRoom(dungeon, at);
+  if (nextRoom) return nextRoom;
+
+  if (pet.hero.dungeon.currentExpedition) {
+    pet.hero.dungeon.currentExpedition.status = 'returned';
+    pet.hero.dungeon.currentExpedition.returnMode = 'portal';
+    pet.hero.dungeon.currentExpedition.endedAt = at;
+    pet.hero.dungeon.currentExpedition.completed = true;
+    pet.hero.dungeon.currentExpedition.returnSummary = '這趟探險沒有新的房間可推進，已經先回到村莊。';
+    pet.hero.dungeon.expeditionHistory = [...pet.hero.dungeon.expeditionHistory, pet.hero.dungeon.currentExpedition].slice(-12);
+    pet.hero.dungeon.currentExpedition = undefined;
+  }
+  pet.hero.dungeon.currentDungeon = undefined;
+  pet.hero.dungeon.location = 'village';
+  runVillageRecovery(pet, at);
+  return null;
+}
+
 export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   if (pet.hero.dungeon.location === 'village' && pet.needs.energy < 35) runVillageRecovery(pet, at);
   if (pet.needs.energy < 35 || pet.needs.health < 35) return null;
@@ -160,7 +185,8 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
 
   const floor = Math.max(1, pet.hero.dungeon.floor + 1);
   const dungeon = ensureDungeonInstance(pet, floor, at);
-  const room = getCurrentRoom(dungeon) ?? dungeon.rooms[0];
+  const room = resolveActiveDungeonRoom(pet, dungeon, at);
+  if (!room) return null;
   const treasureBias = heroClass.abilities.includes('lockpicking') ? 0.12 : 0;
   const roomIndex = Math.max(1, dungeon.pathTakenRoomIds.length);
   const rewards: string[] = [];
