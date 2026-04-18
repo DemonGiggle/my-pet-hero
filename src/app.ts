@@ -157,6 +157,10 @@ function summarizeRisk(pet: PetState): { riskSummary: string; momentum: string; 
   };
 }
 
+function normalizePetIdCandidate(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function buildNarrationSeed(result: ReturnType<typeof simulatePet>): Record<string, unknown> {
   const pet = result.pet;
   const risk = summarizeRisk(pet);
@@ -344,13 +348,27 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 }
 
 export async function resolvePetId(explicitId?: string): Promise<string> {
-  if (explicitId) return explicitId;
-  const chatPreferences = await loadChatPreferences();
-  if (chatPreferences.defaultHeroId) return chatPreferences.defaultHeroId;
   const saves = await listPetSaves();
+  if (!explicitId) {
+    const chatPreferences = await loadChatPreferences();
+    if (chatPreferences.defaultHeroId) return chatPreferences.defaultHeroId;
+    if (saves.length === 1) return saves[0].id;
+    if (saves.length === 0) throw new Error('找不到任何角色存檔，請先用 create 建立角色。');
+    throw new Error(`這裡有 ${saves.length} 個角色，請加 --id 指定，或先用 /pet use HERO_ID 設定預設角色。可用角色：${saves.map(save => save.id).join(', ')}`);
+  }
+
+  const exact = saves.find((save) => save.id === explicitId);
+  if (exact) return exact.id;
+
+  const slugMatch = saves.find((save) => normalizePetIdCandidate(save.id) === normalizePetIdCandidate(explicitId));
+  if (slugMatch) return slugMatch.id;
+
+  const nameMatch = saves.find((save) => typeof save.name === 'string' && normalizePetIdCandidate(save.name) === normalizePetIdCandidate(explicitId));
+  if (nameMatch) return nameMatch.id;
+
   if (saves.length === 1) return saves[0].id;
   if (saves.length === 0) throw new Error('找不到任何角色存檔，請先用 create 建立角色。');
-  throw new Error(`這裡有 ${saves.length} 個角色，請加 --id 指定，或先用 /pet use HERO_ID 設定預設角色。可用角色：${saves.map(save => save.id).join(', ')}`);
+  throw new Error(`找不到角色存檔：${explicitId}。可用角色：${saves.map(save => save.id + (save.name ? `(${save.name})` : '')).join(', ')}`);
 }
 
 export async function getStatusPayload(idArg?: string, includeReport = false): Promise<Record<string, unknown>> {
