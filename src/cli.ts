@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {
+  checkpointHistoryPayload,
   equipInventoryItem,
   executeChatCommand,
   getInventoryPayload,
@@ -223,6 +224,10 @@ async function printSellResult(idArg: string | undefined, itemId: string): Promi
   console.log(JSON.stringify(await sellInventoryItem(idArg, itemId), null, 2));
 }
 
+async function printCheckpoint(idArg?: string): Promise<void> {
+  console.log(JSON.stringify(await checkpointHistoryPayload(idArg), null, 2));
+}
+
 async function printChatCommand(): Promise<void> {
   const rawInput = getArg('input') || process.argv.slice(3).join(' ').trim() || '';
   console.log(JSON.stringify(await executeChatCommand(rawInput), null, 2));
@@ -231,7 +236,7 @@ async function printChatCommand(): Promise<void> {
 async function main(): Promise<void> {
   const cmd = process.argv[2];
   if (!cmd || cmd === 'help') {
-    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  status 讀取目前狀態並輸出；status --report 會額外推進 simulation、寫回存檔，並輸出更完整的 report\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]\n  chat --input \"/pet status\"\n\nconfig:\n  my-pet-hero.config.json -> { \"cadence\": { \"simulationBucketMinutes\": 5, \"villageActivityBucketMinutes\": 5 } }\n  env overrides -> MY_PET_HERO_CONFIG, MY_PET_HERO_SIM_BUCKET_MINUTES, MY_PET_HERO_VILLAGE_BUCKET_MINUTES`);
+    console.log(`my-pet-hero commands:\n  create --name NAME --species elf|dwarf|human|orc|dragon [--class berserker|rogue|mage]\n  status [--id PET_ID] [--report]\n  status 讀取目前狀態並輸出；status --report 會額外推進 simulation、寫回存檔，並輸出更完整的 report\n  inventory [--id PET_ID]\n  equip [--id PET_ID] --item ITEM_ID\n  sell [--id PET_ID] --item ITEM_ID\n  saves\n  doctor [--id PET_ID]\n  classes\n  skills\n  enemies\n  combat-preview [--id PET_ID] [--floor N]\n  dungeon-preview [--id PET_ID] [--floor N] [--at ISO] [--repeat N] [--force-ready]\n  feed [--id PET_ID]\n  play [--id PET_ID]\n  clean [--id PET_ID]\n  checkpoint [--id PET_ID]\n  chat --input \"/pet status\"\n\nconfig:\n  my-pet-hero.config.json -> { \"cadence\": { \"simulationBucketMinutes\": 5, \"villageActivityBucketMinutes\": 5 } }\n  env overrides -> MY_PET_HERO_CONFIG, MY_PET_HERO_SIM_BUCKET_MINUTES, MY_PET_HERO_VILLAGE_BUCKET_MINUTES`);
     return;
   }
 
@@ -245,6 +250,7 @@ async function main(): Promise<void> {
   if (cmd === 'chat') return printChatCommand();
   if (cmd === 'combat-preview') return combatPreview(getArg('id'));
   if (cmd === 'dungeon-preview') return dungeonPreview(getArg('id'));
+  if (cmd === 'checkpoint' || cmd === 'keep' || cmd === 'archive') return printCheckpoint(getArg('id'));
   if (cmd === 'equip') {
     const itemId = getArg('item');
     if (!itemId) throw new Error('equip 需要 --item');

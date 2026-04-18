@@ -59,6 +59,11 @@ async function main() {
     assert.equal(chatHeroes.count, 1);
     assert.equal(chatHeroes.defaultHeroId, 'asaki');
 
+    const chatCheckpoint = await executeChatCommand('/pet checkpoint asaki');
+    assert.equal(chatCheckpoint.command, 'checkpoint');
+    assert.equal(chatCheckpoint.historyCountAfter, 1);
+    assert.ok(chatCheckpoint.keptHistoryEntry);
+
     console.log('App service checks passed.');
   } finally {
     delete process.env.MY_PET_HERO_DATA_DIR;

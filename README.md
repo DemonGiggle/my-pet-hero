@@ -142,6 +142,7 @@ openclaw plugins install ./openclaw-plugin
 - `/pet feed [heroId]`
 - `/pet play [heroId]`
 - `/pet clean [heroId]`
+- `/pet checkpoint [heroId]`
 - `/pet_image [heroId]`
 - `/pet_image status [heroId]`
 - `/pet_image card [heroId]`
@@ -171,6 +172,7 @@ npm run dev -- doctor --id asaki
 
 - `create --name NAME --species SPECIES [--class CLASS]`
 - `status [--id PET_ID] [--report]`
+- `checkpoint [--id PET_ID]`
 - `inventory [--id PET_ID]`
 - `equip [--id PET_ID] --item ITEM_ID`
 - `sell [--id PET_ID] --item ITEM_ID`
@@ -215,6 +217,7 @@ npm run dev -- doctor --id asaki
 
 `status --report` 會比一般 `status` 多做一段固定的 simulation 推進，然後把更新後的寵物狀態寫回存檔。也就是說，連續呼叫 `status --report` 時，角色的時間、needs、村莊活動與冒險紀錄都會真的往前走，而不是只讀出同一份快照。
 報告輸出本身只保留最近幾段探險細節，較舊的歷程會被收進摘要，不會無限增長。
+- `checkpoint` 會先完成一次狀態更新，再把 `history` 收斂成只保留最後一筆，適合在回村或切到新冒險章節前手動切段。
 
 簡單區分：
 
@@ -284,7 +287,7 @@ npm run dev -- doctor --id asaki
 目前已確認：
 
 - `npm run build` 可通過
-- `create` / `status` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` / `chat` CLI 入口存在
+- `create` / `status` / `checkpoint` / `inventory` / `combat-preview` / `dungeon-preview` / `equip` / `sell` / `chat` CLI 入口存在
 - `npm run validate:chat` 可驗證 `/pet status`、`/pet report`、`/pet inventory`、`/pet use`、`/pet heroes`、`/pet feed`
 - `npm run validate:openclaw` 可用 mock OpenClaw plugin registration 驗證 `my_pet_hero_pet` 工具會走到 `chat --input "/pet ..."`，並回傳敘事文字與圖片
 - 新版存檔可正確輸出 expedition / equipment 相關欄位

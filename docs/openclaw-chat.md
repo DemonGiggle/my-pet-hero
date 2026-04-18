@@ -138,6 +138,7 @@ See `docs/chat-output-contract.md` and `docs/narration-style.md` for the portabl
 - `/pet feed [heroId]`
 - `/pet play [heroId]`
 - `/pet clean [heroId]`
+- `/pet checkpoint [heroId]`
 - `/pet_image [heroId]`
 - `/pet_image status [heroId]`
 - `/pet_image card [heroId]`

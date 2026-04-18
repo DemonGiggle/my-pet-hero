@@ -12,6 +12,7 @@ node dist/cli.js chat --input "/pet inventory" > /tmp/mph-chat-inventory.json
 node dist/cli.js chat --input "/pet use asaki" > /tmp/mph-chat-use.json
 node dist/cli.js chat --input "/pet heroes" > /tmp/mph-chat-heroes.json
 node dist/cli.js chat --input "/pet feed" > /tmp/mph-chat-feed.json
+node dist/cli.js chat --input "/pet checkpoint" > /tmp/mph-chat-checkpoint.json
 
 jq -e '.mode == "chat" and .command == "status" and .headline and .message' /tmp/mph-chat-status.json > /dev/null
 jq -e '.mode == "chat" and .command == "report" and .report' /tmp/mph-chat-report.json > /dev/null
@@ -19,9 +20,13 @@ jq -e '.mode == "chat" and .command == "inventory" and .inventoryLines' /tmp/mph
 jq -e '.defaultHeroId == "asaki"' /tmp/mph-chat-use.json > /dev/null
 jq -e '.defaultHeroId == "asaki" and .count == 1' /tmp/mph-chat-heroes.json > /dev/null
 jq -e '.command == "feed" and .summary and .id == "asaki"' /tmp/mph-chat-feed.json > /dev/null
+jq -e '.command == "checkpoint" and .historyCountAfter == 1 and .keptHistoryEntry' /tmp/mph-chat-checkpoint.json > /dev/null
 
 echo 'CHAT_STATUS:'
 jq -r '.message' /tmp/mph-chat-status.json
 echo '---'
 echo 'CHAT_REPORT_SNIPPET:'
 jq -r '.report' /tmp/mph-chat-report.json | head -n 8
+echo '---'
+echo 'CHAT_CHECKPOINT:'
+jq -r '.message' /tmp/mph-chat-checkpoint.json

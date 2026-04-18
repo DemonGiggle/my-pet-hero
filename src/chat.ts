@@ -9,7 +9,7 @@ export interface ChatPreferenceState {
 
 export interface ChatCommandIntent {
   namespace: 'pet' | 'pet_image';
-  action: 'help' | 'status' | 'report' | 'inventory' | 'feed' | 'play' | 'clean' | 'heroes' | 'use';
+  action: 'help' | 'status' | 'report' | 'inventory' | 'feed' | 'play' | 'clean' | 'heroes' | 'use' | 'checkpoint';
   heroId?: string;
   raw: string;
   tokens: string[];
@@ -72,6 +72,9 @@ export function parseChatCommand(input: string): ChatCommandIntent {
   if (command === 'feed' || command === 'play' || command === 'clean') {
     return { namespace: 'pet', action: command, heroId: firstArg, raw: input, tokens };
   }
+  if (command === 'checkpoint' || command === 'keep' || command === 'archive') {
+    return { namespace: 'pet', action: 'checkpoint', heroId: firstArg, raw: input, tokens };
+  }
   if (command === 'heroes' || command === 'saves' || command === 'list') {
     return { namespace: 'pet', action: 'heroes', raw: input, tokens };
   }
@@ -112,6 +115,7 @@ export function formatChatHelp(): string {
     '/pet feed [heroId]      餵食',
     '/pet play [heroId]      玩耍',
     '/pet clean [heroId]     清潔',
+    '/pet checkpoint [heroId] 保留最後一筆 history',
     '/pet heroes             列出角色',
     '/pet use HERO_ID        設定預設角色',
     '/pet help               顯示這份說明',

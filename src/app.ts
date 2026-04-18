@@ -523,6 +523,45 @@ export async function equipInventoryItem(idArg: string | undefined, itemId: stri
   };
 }
 
+export async function checkpointHistoryPayload(idArg?: string): Promise<Record<string, unknown>> {
+  const id = await resolvePetId(idArg);
+  const pet = await loadPet(id);
+  const result = simulatePet(pet);
+  const historyBefore = result.pet.history.slice();
+  const lastEntry = historyBefore[historyBefore.length - 1] ?? null;
+  result.pet.history = lastEntry ? [lastEntry] : [];
+  await savePet(result.pet);
+  const rendered = await renderStatusCard({
+    pet: result.pet,
+    summary: lastEntry
+      ? `已保留最後一筆 history：${lastEntry.text}`
+      : '目前沒有可保留的 history'
+  });
+
+  return {
+    id: result.pet.id,
+    mode: 'checkpoint',
+    summary: lastEntry
+      ? `已保留最後一筆 history，原本 ${historyBefore.length} 筆現在收斂為 1 筆。`
+      : '目前沒有 history 可保留。',
+    message: lastEntry
+      ? `已保留最後一筆 history。`
+      : `目前沒有 history 可保留。`,
+    historyCountBefore: historyBefore.length,
+    historyCountAfter: result.pet.history.length,
+    keptHistoryEntry: lastEntry,
+    imagePath: rendered.outputPath,
+    needs: result.pet.needs,
+    attributes: result.pet.hero.attributes,
+    equipment: result.pet.hero.equipment,
+    equipmentSummary: formatEquipmentSummary(result.pet),
+    level: result.pet.hero.level,
+    exp: result.pet.hero.exp,
+    expToNext: result.pet.hero.expToNext,
+    history: result.pet.history
+  };
+}
+
 export async function sellInventoryItem(idArg: string | undefined, itemId: string): Promise<Record<string, unknown>> {
   const id = await resolvePetId(idArg);
   const pet = await loadPet(id);
@@ -582,6 +621,17 @@ export async function executeChatCommand(rawInput: string): Promise<Record<strin
       rawInput,
       command: intent.action,
       message: typeof payload.headline === 'string' ? payload.headline : '角色近況如下。',
+      ...payload
+    };
+  }
+
+  if (intent.action === 'checkpoint') {
+    const payload = await checkpointHistoryPayload(intent.heroId);
+    return {
+      mode: 'chat',
+      rawInput,
+      command: intent.action,
+      message: typeof payload.message === 'string' ? payload.message : '已保留最後一筆 history。',
       ...payload
     };
   }
