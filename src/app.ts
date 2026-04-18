@@ -9,9 +9,20 @@ import { simulatePet } from './simulate.js';
 import { listPetSaves, loadPet, savePet } from './state.js';
 import { SKILLS } from './skills.js';
 import { PetState, ReportJournalEntry } from './types.js';
+import { hashToUnit } from './utils.js';
 import { villageReadinessLabel, villageReadinessScore } from './village.js';
 
 const MAX_EXPEDITION_LOGS_IN_REPORT = 4;
+const REPORT_FOCUS_LABELS = [
+  '地形回看',
+  '壓力回看',
+  '狀態回看',
+  '回聲切面',
+  '餘波切面',
+  '路線觀察',
+  '前方預判',
+  '細節掃描'
+];
 
 function formatNeedSummary(pet: PetState): string {
   const warnings: string[] = [];
@@ -198,14 +209,60 @@ function summarizeAdventureLog(log: PetState['hero']['adventureLog'][number]): {
   };
 }
 
+function buildReportFocusLabel(pet: PetState, reportIndex: number): string {
+  const expedition = pet.hero.dungeon.currentExpedition;
+  const seed = `${pet.seed}:${pet.hero.dungeon.location}:${pet.hero.dungeon.floor}:${expedition?.roomsCleared ?? 0}:${expedition?.totalRooms ?? 0}`;
+  const offset = Math.floor(hashToUnit(seed) * REPORT_FOCUS_LABELS.length);
+  return REPORT_FOCUS_LABELS[(offset + reportIndex - 1) % REPORT_FOCUS_LABELS.length];
+}
+
+function buildReportEventText(result: ReturnType<typeof simulatePet>, reportIndex: number, latestEvent: ReturnType<typeof simulatePet>['events'][number] | null): string {
+  const pet = result.pet;
+  const expedition = pet.hero.dungeon.currentExpedition;
+  const villageActivity = pet.hero.dungeon.village.currentActivity;
+  const reportFocus = buildReportFocusLabel(pet, reportIndex);
+  const parts = [
+    `${reportFocus}：${describeCurrentScene(pet)}`,
+    expedition
+      ? `進度 ${expedition.roomsCleared}/${expedition.totalRooms} 房`
+      : `準備度 ${villageReadinessLabel(villageReadinessScore(pet))}`,
+    `狀態：${formatNeedSummary(pet)}`,
+    latestEvent?.type && latestEvent.type !== 'report' ? `前一刻：${latestEvent.text}` : '',
+    villageActivity ? `村裡同步進行：${villageActivity.summary}` : ''
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+function buildReportEvent(result: ReturnType<typeof simulatePet>, reportIndex: number, latestEvent: ReturnType<typeof simulatePet>['events'][number] | null): ReturnType<typeof simulatePet>['events'][number] {
+  const text = buildReportEventText(result, reportIndex, latestEvent);
+  return {
+    at: result.events[result.events.length - 1]?.at ?? result.pet.lastSimulatedAt,
+    type: 'report',
+    delta: {},
+    text
+  };
+}
+
 function buildReportJournalEntry(result: ReturnType<typeof simulatePet>, nowIso: string): ReportJournalEntry {
   const pet = result.pet;
   const currentExpedition = pet.hero.dungeon.currentExpedition;
   const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
-  const latestEvent = result.events[result.events.length - 1];
-  const latestAdventure = pet.hero.adventureLog[pet.hero.adventureLog.length - 1];
+  const latestEvent = result.events[result.events.length - 1] ?? null;
+  const reportIndex = (pet.reportJournal?.length ?? 0) + 1;
+  const reportFocus = buildReportFocusLabel(pet, reportIndex);
+  const latestAdventure = latestEvent?.type === 'adventure'
+    ? pet.hero.adventureLog[pet.hero.adventureLog.length - 1] ?? null
+    : null;
 
-  if (latestEvent?.type === 'adventure' && latestAdventure) {
+  if (latestEvent?.type === 'report') {
+    return {
+      at: nowIso,
+      title: `${currentExpedition ? `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層` : pet.hero.dungeon.village.name} / ${reportFocus}`,
+      text: latestEvent.text
+    };
+  }
+
+  if (latestAdventure) {
     const summary = summarizeAdventureLog(latestAdventure);
     return {
       at: nowIso,
@@ -227,10 +284,12 @@ function buildReportJournalEntry(result: ReturnType<typeof simulatePet>, nowIso:
   if (currentExpedition) {
     return {
       at: nowIso,
-      title: `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層 / 進度 ${currentExpedition.roomsCleared}/${currentExpedition.totalRooms}`,
+      title: `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層 / ${reportFocus}`,
       text: [
-        latestEvent?.text ?? latestAdventure?.text ?? result.summary,
-        currentExpedition.narrative.latestBeat ? `最近轉折：${currentExpedition.narrative.latestBeat.title}` : '',
+        buildReportEventText(result, reportIndex, latestEvent),
+        `場景：${describeCurrentScene(pet)}`,
+        `狀態：${formatNeedSummary(pet)}`,
+        `進度：${currentExpedition.roomsCleared}/${currentExpedition.totalRooms} 房`,
         delta ? `變化：${delta}` : ''
       ].filter(Boolean).join(' ')
     };
@@ -238,8 +297,13 @@ function buildReportJournalEntry(result: ReturnType<typeof simulatePet>, nowIso:
 
   return {
     at: nowIso,
-    title: `${pet.hero.dungeon.village.name} / ${latestEvent?.type ?? '日常回合'}`,
-    text: [latestEvent?.text ?? result.summary, delta ? `變化：${delta}` : ''].filter(Boolean).join(' ')
+    title: `${pet.hero.dungeon.village.name} / ${reportFocus}`,
+    text: [
+      buildReportEventText(result, reportIndex, latestEvent),
+      `場景：${describeCurrentScene(pet)}`,
+      `狀態：${formatNeedSummary(pet)}`,
+      delta ? `變化：${delta}` : ''
+    ].filter(Boolean).join(' ')
   };
 }
 
@@ -448,6 +512,11 @@ export async function getStatusPayload(idArg?: string, includeReport = false): P
   const nowIso = new Date().toISOString();
   const result = simulatePet(pet, includeReport ? resolveReportSimulationAt(pet, nowIso) : nowIso);
   if (includeReport) {
+    const reportIndex = (result.pet.reportJournal?.length ?? 0) + 1;
+    const sourceEvent = result.events[result.events.length - 1] ?? null;
+    const reportEvent = buildReportEvent(result, reportIndex, sourceEvent);
+    result.events = [...result.events, reportEvent];
+    result.pet.history = [...result.pet.history, reportEvent].slice(-30);
     const journalEntry = buildReportJournalEntry(result, nowIso);
     result.pet.reportJournal = [...(result.pet.reportJournal ?? []), journalEntry].slice(-30);
   }

@@ -32,6 +32,8 @@ async function main() {
     assert.equal(statusAgain.reportJournalCount, 2);
     assert.ok(Array.isArray(statusAgain.reportJournal));
     assert.equal(statusAgain.reportJournal?.length, 2);
+    assert.notEqual(statusAgain.reportJournal?.[0]?.title, statusAgain.reportJournal?.[1]?.title);
+    assert.notEqual(statusAgain.reportJournal?.[0]?.text, statusAgain.reportJournal?.[1]?.text);
 
     const inventory = await getInventoryPayload('asaki');
     assert.equal(inventory.id, 'asaki');
