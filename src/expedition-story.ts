@@ -153,7 +153,7 @@ export function applyExpeditionCallbacks(params: {
   const goal = expedition.goal;
   if (!goal) return { expedition, extraBeats: [], rewardNotes: [] };
 
-  const roomCount = log.runState?.pathTakenRoomIds?.length ?? expedition.roomsCleared ?? 0;
+  const roomCount = log.runState?.clearedRoomIds?.length ?? expedition.roomsCleared ?? 0;
   const callbackTemplate = callbackTemplateFor(`${expedition.id}:${goal.key}`);
   const extraBeats: ExpeditionNarrativeBeat[] = [];
   const rewardNotes: string[] = [];
