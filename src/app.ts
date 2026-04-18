@@ -1,5 +1,6 @@
 import { feedPet, playWithPet, cleanPet } from './actions.js';
 import { formatChatHelp, loadChatPreferences, parseChatCommand, saveChatPreferences } from './chat.js';
+import { loadGameConfig } from './config.js';
 import { renderDungeonMinimap } from './dungeons.js';
 import { describeItem, equipItemById, formatEquipmentSummary, listInventory, sellItemById } from './gear.js';
 import { buildExpeditionStorySummary, renderNarrativeDigest } from './narrative.js';
@@ -159,6 +160,14 @@ function summarizeRisk(pet: PetState): { riskSummary: string; momentum: string; 
 
 function normalizePetIdCandidate(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function resolveReportSimulationAt(pet: PetState, nowIso: string): string {
+  const nowMs = new Date(nowIso).getTime();
+  const lastMs = new Date(pet.lastSimulatedAt).getTime();
+  const cadenceMinutes = loadGameConfig().config.cadence.simulationBucketMinutes;
+  const forcedMs = lastMs + cadenceMinutes * 60_000;
+  return new Date(Math.max(nowMs, forcedMs)).toISOString();
 }
 
 function buildNarrationSeed(result: ReturnType<typeof simulatePet>): Record<string, unknown> {
@@ -374,7 +383,8 @@ export async function resolvePetId(explicitId?: string): Promise<string> {
 export async function getStatusPayload(idArg?: string, includeReport = false): Promise<Record<string, unknown>> {
   const id = await resolvePetId(idArg);
   const pet = await loadPet(id);
-  const result = simulatePet(pet);
+  const nowIso = new Date().toISOString();
+  const result = simulatePet(pet, includeReport ? resolveReportSimulationAt(pet, nowIso) : nowIso);
   await savePet(result.pet);
   const rendered = await renderStatusCard({ pet: result.pet, summary: formatCardSummary(result) });
   const currentDungeon = result.pet.hero.dungeon.currentDungeon;
