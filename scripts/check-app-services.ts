@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -8,7 +8,7 @@ async function main() {
   process.env.MY_PET_HERO_DATA_DIR = path.join(tmpRoot, 'pets');
   process.env.MY_PET_HERO_RENDER_DIR = path.join(tmpRoot, 'renders');
 
-  const { createPet, savePet } = await import('../src/state.js');
+  const { createPet, loadPet, savePet, petFilePath } = await import('../src/state.js');
   const {
     executeChatCommand,
     getInventoryPayload,
@@ -71,6 +71,35 @@ async function main() {
     assert.equal(chatCheckpoint.command, 'checkpoint');
     assert.equal(chatCheckpoint.historyCountAfter, 1);
     assert.ok(chatCheckpoint.keptHistoryEntry);
+
+    const legacyPet = createPet({ id: 'legacy', name: 'Legacy', species: 'human', heroClass: 'rogue' });
+    await savePet(legacyPet);
+    const legacyPath = petFilePath('legacy');
+    const rawLegacy = JSON.parse(await readFile(legacyPath, 'utf8'));
+    rawLegacy.hero.dungeon.expeditionHistory = [
+      {
+        id: 'exp-legacy',
+        startedAt: rawLegacy.createdAt,
+        endedAt: rawLegacy.createdAt,
+        dungeonName: '舊迷宮',
+        floor: 2,
+        status: 'returned',
+        returnMode: 'portal',
+        roomsCleared: 5,
+        totalRooms: 6,
+        bossDefeated: true,
+        totalExpGained: 0,
+        totalGoldGained: 0,
+        villagePreparation: [],
+        returnSummary: '舊資料',
+        completed: true,
+        logs: [],
+        narrative: { premise: '', tension: 0, arc: 'fresh', partyCondition: 'steady', beats: [] }
+      }
+    ];
+    await writeFile(legacyPath, JSON.stringify(rawLegacy, null, 2) + '\n', 'utf8');
+    const normalizedLegacy = await loadPet('legacy');
+    assert.equal(normalizedLegacy.hero.dungeon.expeditionHistory[0].roomsCleared, 6);
 
     console.log('App service checks passed.');
   } finally {

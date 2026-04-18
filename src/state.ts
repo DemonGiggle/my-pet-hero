@@ -413,13 +413,20 @@ function cloneJson<T>(value: T): T {
 function ensureExpeditionShape(expedition: unknown): unknown {
   if (!isRecord(expedition)) return expedition;
 
+  const roomsCleared = typeof expedition.roomsCleared === 'number' ? expedition.roomsCleared : 0;
+  const totalRooms = typeof expedition.totalRooms === 'number' ? expedition.totalRooms : 0;
+  const completed = typeof expedition.completed === 'boolean' ? expedition.completed : false;
+  const normalizedRoomsCleared = completed && totalRooms > roomsCleared ? totalRooms : roomsCleared;
+
   return {
     ...expedition,
     totalExpGained: typeof expedition.totalExpGained === 'number' ? expedition.totalExpGained : 0,
     totalGoldGained: typeof expedition.totalGoldGained === 'number' ? expedition.totalGoldGained : 0,
     villagePreparation: Array.isArray(expedition.villagePreparation) ? expedition.villagePreparation : [],
     returnSummary: typeof expedition.returnSummary === 'string' ? expedition.returnSummary : undefined,
-    completed: typeof expedition.completed === 'boolean' ? expedition.completed : false,
+    completed,
+    roomsCleared: normalizedRoomsCleared,
+    totalRooms,
     logs: Array.isArray(expedition.logs) ? expedition.logs : [],
     narrative: isRecord(expedition.narrative)
       ? {
@@ -447,6 +454,11 @@ function ensureExpeditionShape(expedition: unknown): unknown {
         }
       : undefined
   };
+}
+
+function normalizeExpeditionProgress(expedition: unknown): unknown {
+  if (!isRecord(expedition)) return expedition;
+  return ensureExpeditionShape(expedition);
 }
 
 function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: number; changed: boolean } {
@@ -756,6 +768,23 @@ function migrateSaveData(raw: unknown): { migrated: PetState; fromVersion: numbe
 
     throw new Error(`Unsupported migration path from version ${currentVersion}.`);
   }
+
+  const postMigrationHero = isRecord(migrated.hero) ? migrated.hero : {};
+  const postMigrationDungeon = isRecord(postMigrationHero.dungeon) ? postMigrationHero.dungeon : {};
+  const normalizedCurrentExpedition = normalizeExpeditionProgress(postMigrationDungeon.currentExpedition);
+  if (JSON.stringify(normalizedCurrentExpedition) !== JSON.stringify(postMigrationDungeon.currentExpedition)) {
+    changed = true;
+  }
+  postMigrationDungeon.currentExpedition = normalizedCurrentExpedition;
+  const normalizedExpeditionHistory = Array.isArray(postMigrationDungeon.expeditionHistory)
+    ? postMigrationDungeon.expeditionHistory.map(normalizeExpeditionProgress)
+    : [];
+  if (JSON.stringify(normalizedExpeditionHistory) !== JSON.stringify(postMigrationDungeon.expeditionHistory)) {
+    changed = true;
+  }
+  postMigrationDungeon.expeditionHistory = normalizedExpeditionHistory;
+  postMigrationHero.dungeon = postMigrationDungeon;
+  migrated.hero = postMigrationHero;
 
   return {
     migrated: petStateSchema.parse(migrated),
