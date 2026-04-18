@@ -160,21 +160,86 @@ function summarizeRisk(pet: PetState): { riskSummary: string; momentum: string; 
   };
 }
 
+function formatNeedDelta(delta: Partial<PetState['needs']>): string {
+  const labels: Record<keyof PetState['needs'], string> = {
+    health: '血量',
+    hunger: '飢餓',
+    thirst: '口渴',
+    mood: '心情',
+    energy: '體力',
+    hygiene: '整潔'
+  };
+  const parts = Object.entries(delta)
+    .filter(([, value]) => typeof value === 'number' && value !== 0)
+    .map(([key, value]) => `${labels[key as keyof PetState['needs']]} ${value! > 0 ? '+' : ''}${value}`);
+  return parts.length > 0 ? parts.join(' / ') : '';
+}
+
+function summarizeAdventureLog(log: PetState['hero']['adventureLog'][number]): { title: string; text: string } {
+  const titleParts = [
+    log.dungeonName,
+    log.roomName ?? log.roomType ?? '未知房間',
+    log.outcome === 'win' ? '過關' : log.outcome === 'treasure' ? '撿到戰利品' : log.outcome === 'escape' ? '撤退' : log.outcome === 'defeat' ? '失手' : '休整'
+  ].filter(Boolean);
+  const textParts: string[] = [log.narrative?.beatText ?? log.text];
+  if (log.roomSummary) textParts.push(`房間：${log.roomSummary}`);
+  if (log.rewards?.length) textParts.push(`收穫：${log.rewards.join('、')}`);
+  const delta = formatNeedDelta(log.roomEffect ?? {});
+  if (delta) textParts.push(`波動：${delta}`);
+  if (log.combat) {
+    textParts.push(`戰鬥：對上 ${log.combat.enemy.label}，${log.combat.rounds} 回合 ${log.combat.outcome}。`);
+  }
+  if (log.trap?.triggered) {
+    textParts.push(`陷阱：${log.trap.effect}`);
+  }
+  return {
+    title: titleParts.join(' / '),
+    text: textParts.join(' ')
+  };
+}
+
 function buildReportJournalEntry(result: ReturnType<typeof simulatePet>, nowIso: string): ReportJournalEntry {
   const pet = result.pet;
   const currentExpedition = pet.hero.dungeon.currentExpedition;
   const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
   const latestEvent = result.events[result.events.length - 1];
-  const title = currentExpedition
-    ? `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層`
-    : currentVillageActivity
-      ? `${pet.hero.dungeon.village.name} / ${currentVillageActivity.label}`
-      : `${pet.hero.dungeon.village.name} / 日常回合`;
-  const text = latestEvent?.text ?? result.summary;
+  const latestAdventure = pet.hero.adventureLog[pet.hero.adventureLog.length - 1];
+
+  if (latestEvent?.type === 'adventure' && latestAdventure) {
+    const summary = summarizeAdventureLog(latestAdventure);
+    return {
+      at: nowIso,
+      title: summary.title,
+      text: summary.text
+    };
+  }
+
+  if (latestEvent?.type === 'village-activity' && currentVillageActivity) {
+    const delta = formatNeedDelta(latestEvent?.delta ?? {});
+    return {
+      at: nowIso,
+      title: `${pet.hero.dungeon.village.name} / ${currentVillageActivity.label}`,
+      text: [currentVillageActivity.detail, latestEvent?.text, delta ? `變化：${delta}` : ''].filter(Boolean).join(' ')
+    };
+  }
+
+  const delta = formatNeedDelta(latestEvent?.delta ?? {});
+  if (currentExpedition) {
+    return {
+      at: nowIso,
+      title: `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層 / 進度 ${currentExpedition.roomsCleared}/${currentExpedition.totalRooms}`,
+      text: [
+        latestEvent?.text ?? latestAdventure?.text ?? result.summary,
+        currentExpedition.narrative.latestBeat ? `最近轉折：${currentExpedition.narrative.latestBeat.title}` : '',
+        delta ? `變化：${delta}` : ''
+      ].filter(Boolean).join(' ')
+    };
+  }
+
   return {
     at: nowIso,
-    title,
-    text
+    title: `${pet.hero.dungeon.village.name} / ${latestEvent?.type ?? '日常回合'}`,
+    text: [latestEvent?.text ?? result.summary, delta ? `變化：${delta}` : ''].filter(Boolean).join(' ')
   };
 }
 
