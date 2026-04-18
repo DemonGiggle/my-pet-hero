@@ -1,4 +1,5 @@
 import { PNG } from 'pngjs';
+import { randomBytes } from 'node:crypto';
 import { writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -126,6 +127,12 @@ function resolveRenderDir(): string {
   return path.join(os.homedir(), '.local', 'state', 'my-pet-hero', 'renders');
 }
 
+function buildRenderFileName(pet: PetState): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const nonce = randomBytes(3).toString('hex');
+  return `${pet.id}-status-${timestamp}-${nonce}.png`;
+}
+
 export async function renderStatusCard(params: { pet: PetState; summary: string; outputDir?: string }): Promise<RenderResult> {
   const { pet, summary } = params;
   const outputDir = params.outputDir ?? resolveRenderDir();
@@ -168,7 +175,7 @@ export async function renderStatusCard(params: { pet: PetState; summary: string;
   drawText(png, `FLOOR ${pet.hero.dungeon.deepestFloor}`, 162, 284, species.palette.text);
   drawText(png, summary.toUpperCase().replace(/[^A-Z0-9 .,:!?+\-/'()]/g, ' ').slice(0, 23), 18, 302, species.palette.text);
 
-  const outputPath = path.join(outputDir, `${pet.id}-status.png`);
+  const outputPath = path.join(outputDir, buildRenderFileName(pet));
   await writeFile(outputPath, PNG.sync.write(png));
   return { outputPath };
 }
