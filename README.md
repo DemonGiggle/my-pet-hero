@@ -213,6 +213,13 @@ npm run dev -- doctor --id asaki
 
 每次執行 `status`、`inventory`、`equip`、`sell`、互動指令時，都會先載入存檔並推進 query-time simulation，再輸出結果。
 
+`status --report` 會比一般 `status` 多做一段固定的 simulation 推進，然後把更新後的寵物狀態寫回存檔。也就是說，連續呼叫 `status --report` 時，角色的時間、needs、村莊活動與冒險紀錄都會真的往前走，而不是只讀出同一份快照。
+
+簡單區分：
+
+- `status`：讀取目前狀態並輸出
+- `status --report`：讀取、推進、寫回，再輸出更完整的 report
+
 ### 2. 探險不是背景常駐，而是查詢時觸發推進
 
 系統會依 needs、個性與時間 bucket 決定是否自動出發探險。角色位置會在 `village` 與 `dungeon` 之間切換。
