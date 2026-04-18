@@ -1,6 +1,9 @@
 ---
 name: pet
 description: Control My Pet Hero from chat with `/pet ...` commands like status, report, inventory, feed, play, clean, heroes, and use.
+command-dispatch: tool
+command-tool: my_pet_hero_pet
+command-arg-mode: raw
 ---
 
 # My Pet Hero chat skill

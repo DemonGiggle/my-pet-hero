@@ -119,16 +119,25 @@ npm run dev -- chat --input "/pet heroes"
 npm run dev -- chat --input "/pet use asaki"
 ```
 
-如果你只是要把 `/pet` 註冊成真正的原生 bot command，最簡單的做法是安裝 repo 內的 `openclaw-plugin/`。它會提供 `my_pet_hero_pet` tool，而 repo 內的 `skills/pet/` 與 workspace `skills/pet/` 都能用 `command-dispatch: tool` 把 `/pet` 直接 deterministic 執行，不經 LLM。
+如果你只是要把 `/pet` 註冊成真正的原生 bot command，最簡單的做法是安裝 repo 內的 `openclaw-plugin/`。它會提供 `my_pet_hero_pet` tool，而 repo 內的 `skills/pet/`、`skills/pet_image/` 或 workspace mirror 都能用 `command-dispatch: tool` 把 `/pet` / `/pet_image` 直接 deterministic 執行，不經 LLM。
 
 ```bash
+npm install
 npm run build
 openclaw plugins install ./openclaw-plugin
 ```
 
-重啟 gateway 後，保持 `commands.nativeSkills` 啟用，OpenClaw 就會把 `pet` skill 註冊成 `/pet`，其餘輸入則直接交給 `my_pet_hero_pet` tool，再由它呼叫 `chat --input "/pet ..."`。
+如果你的 OpenClaw 主要從 workspace 掃 skill，請把 skill link 進去：
 
-現在建議不要再走舊的 skill-only prompt routing。若要從 workspace 暴露 `/pet`，請保留 workspace `skills/pet/`，並確保 `my_pet_hero_pet` tool 已由 plugin 提供。
+```bash
+mkdir -p ~/.openclaw/workspace/skills
+ln -s /path/to/my-pet-hero/skills/pet ~/.openclaw/workspace/skills/pet
+ln -s /path/to/my-pet-hero/skills/pet_image ~/.openclaw/workspace/skills/pet_image
+```
+
+重啟 gateway 後，保持 `commands.nativeSkills` 啟用，OpenClaw 就會把 `pet` / `pet_image` skill 註冊成原生命令，其餘輸入則直接交給 `my_pet_hero_pet` tool，再由它呼叫 `chat --input "/pet ..."`。
+
+更新 repo 後，建議同步做一次：`git pull --rebase && npm install && npm run build`，再視需要重裝 plugin。
 
 更完整的整合說明見 `docs/openclaw-chat.md`。
 

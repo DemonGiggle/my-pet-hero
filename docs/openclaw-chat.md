@@ -3,8 +3,8 @@
 My Pet Hero now exposes both:
 
 - a reusable `chat` CLI entrypoint for slash-style commands
-- `openclaw-plugin/`, the preferred OpenClaw integration, which ships a deterministic tool plus `pet` and `pet_image` skills wired with `command-dispatch: tool`
-- the older standalone `skills/pet/` skill, which still works for prompt-based routing
+- `openclaw-plugin/`, the preferred OpenClaw integration, which ships a deterministic tool
+- repo `skills/pet/` and `skills/pet_image/`, which should be used with `command-dispatch: tool`
 
 The intent is that OpenClaw can register `/pet` and `/pet_image` itself, then hand the rest of the message to My Pet Hero as subcommands.
 
@@ -20,9 +20,9 @@ OpenClaw native skill commands can dispatch directly to a tool when the skill fr
 
 The `openclaw-plugin/` package ships the tool portion of that combination, and the skill can come from either the plugin bundle or the workspace mirror:
 
-1. a skill directory named `openclaw-plugin/skills/pet/` or `~/.openclaw/workspace/skills/pet/`
+1. a visible skill directory such as repo `skills/pet/` or `~/.openclaw/workspace/skills/pet/`
 2. `SKILL.md` frontmatter with `name: pet`, `command-dispatch: tool`, `command-tool: my_pet_hero_pet`, and `command-arg-mode: raw`
-3. a registered tool named `my_pet_hero_pet`
+3. a registered tool named `my_pet_hero_pet` from `openclaw-plugin/`
 4. OpenClaw command registration enabled (`commands.native` and `commands.nativeSkills`, or the Telegram-specific overrides left at `auto`/`true`)
 
 With that in place, OpenClaw registers `/pet` with Telegram as a real bot command, instead of relying only on text parsing, and the command can execute without routing through the model.
@@ -51,7 +51,7 @@ npm run build
 openclaw plugins install ./openclaw-plugin
 ```
 
-This gives OpenClaw the deterministic tool. The matching `/pet` and `/pet_image` skills can come from the bundled plugin skills or the workspace mirrors.
+This gives OpenClaw the deterministic tool. The matching `/pet` and `/pet_image` skills should come from the repo `skills/` directories or workspace mirrors.
 
 If you keep a workspace-visible `skills/pet/`, make sure it uses the deterministic tool-dispatch frontmatter. Avoid the old skill-only prompt route.
 
@@ -87,16 +87,17 @@ If `/pet` or `/pet_image` does not appear, check:
 - `commands.nativeSkills` is not disabled globally or for Telegram
 - the gateway restarted cleanly after the plugin became available
 
-### Legacy skill-only install
+### Skill visibility setup
 
-If you only want the older prompt-routed skill:
+If OpenClaw should discover the skills from your workspace, link them into `~/.openclaw/workspace/skills/`:
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills
 ln -s /path/to/my-pet-hero/skills/pet ~/.openclaw/workspace/skills/pet
+ln -s /path/to/my-pet-hero/skills/pet_image ~/.openclaw/workspace/skills/pet_image
 ```
 
-That still makes `/pet` eligible for native registration, but it does not provide deterministic tool dispatch.
+These repo skills are intended to be used with deterministic tool dispatch, not the older prompt-only route.
 
 ## Goal
 
