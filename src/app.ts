@@ -11,6 +11,8 @@ import { SKILLS } from './skills.js';
 import { PetState } from './types.js';
 import { villageReadinessLabel, villageReadinessScore } from './village.js';
 
+const MAX_EXPEDITION_LOGS_IN_REPORT = 4;
+
 function formatNeedSummary(pet: PetState): string {
   const warnings: string[] = [];
   if (pet.needs.health < 45) warnings.push('血量偏低');
@@ -273,8 +275,10 @@ function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expedi
   if (expedition.villagePreparation.length > 0) lines.push(`村莊整備：${expedition.villagePreparation.join('、')}`);
   if (expedition.returnSummary) lines.push(`回村整理：${expedition.returnSummary}`);
   if (expedition.logs.length > 0) {
-    lines.push('本次歷程：');
-    for (const item of expedition.logs) {
+    const visibleLogs = expedition.logs.slice(-MAX_EXPEDITION_LOGS_IN_REPORT);
+    const hiddenCount = expedition.logs.length - visibleLogs.length;
+    lines.push(`本次歷程：${hiddenCount > 0 ? `（僅顯示最近 ${visibleLogs.length} 筆，前面 ${hiddenCount} 筆已收起）` : ''}`);
+    for (const item of visibleLogs) {
       const roomLabel = item.roomName ?? item.roomType ?? 'unknown';
       lines.push(`• ${roomLabel}，${item.outcome}，EXP +${item.expGained}，Gold +${item.goldGained}`);
       lines.push(`  ${item.text}`);
