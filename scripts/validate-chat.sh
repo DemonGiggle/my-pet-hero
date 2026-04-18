@@ -14,19 +14,38 @@ node dist/cli.js chat --input "/pet heroes" > /tmp/mph-chat-heroes.json
 node dist/cli.js chat --input "/pet feed" > /tmp/mph-chat-feed.json
 node dist/cli.js chat --input "/pet checkpoint" > /tmp/mph-chat-checkpoint.json
 
-jq -e '.mode == "chat" and .command == "status" and .headline and .message' /tmp/mph-chat-status.json > /dev/null
-jq -e '.mode == "chat" and .command == "report" and .report' /tmp/mph-chat-report.json > /dev/null
-jq -e '.mode == "chat" and .command == "inventory" and .inventoryLines' /tmp/mph-chat-inventory.json > /dev/null
-jq -e '.defaultHeroId == "asaki"' /tmp/mph-chat-use.json > /dev/null
-jq -e '.defaultHeroId == "asaki" and .count == 1' /tmp/mph-chat-heroes.json > /dev/null
-jq -e '.command == "feed" and .summary and .id == "asaki"' /tmp/mph-chat-feed.json > /dev/null
-jq -e '.command == "checkpoint" and .historyCountAfter == 1 and .keptHistoryEntry' /tmp/mph-chat-checkpoint.json > /dev/null
+node --input-type=module <<'NODE'
+import fs from 'node:fs/promises';
 
-echo 'CHAT_STATUS:'
-jq -r '.message' /tmp/mph-chat-status.json
-echo '---'
-echo 'CHAT_REPORT_SNIPPET:'
-jq -r '.report' /tmp/mph-chat-report.json | head -n 8
-echo '---'
-echo 'CHAT_CHECKPOINT:'
-jq -r '.message' /tmp/mph-chat-checkpoint.json
+const read = async (file) => JSON.parse(await fs.readFile(file, 'utf8'));
+const status = await read('/tmp/mph-chat-status.json');
+const report = await read('/tmp/mph-chat-report.json');
+const inventory = await read('/tmp/mph-chat-inventory.json');
+const use = await read('/tmp/mph-chat-use.json');
+const heroes = await read('/tmp/mph-chat-heroes.json');
+const feed = await read('/tmp/mph-chat-feed.json');
+const checkpoint = await read('/tmp/mph-chat-checkpoint.json');
+
+const checks = [
+  [status.mode === 'chat' && status.command === 'status' && status.headline && status.message, 'status'],
+  [report.mode === 'chat' && report.command === 'report' && report.report, 'report'],
+  [inventory.mode === 'chat' && inventory.command === 'inventory' && Array.isArray(inventory.inventoryLines), 'inventory'],
+  [use.defaultHeroId === 'asaki', 'use'],
+  [heroes.defaultHeroId === 'asaki' && heroes.count === 1, 'heroes'],
+  [feed.command === 'feed' && feed.summary && feed.id === 'asaki', 'feed'],
+  [checkpoint.command === 'checkpoint' && checkpoint.historyCountAfter === 1 && checkpoint.keptHistoryEntry, 'checkpoint']
+];
+
+for (const [ok, label] of checks) {
+  if (!ok) throw new Error(`validation failed: ${label}`);
+}
+
+console.log('CHAT_STATUS:');
+console.log(status.message);
+console.log('---');
+console.log('CHAT_REPORT_SNIPPET:');
+console.log((report.report ?? '').split('\n').slice(0, 8).join('\n'));
+console.log('---');
+console.log('CHAT_CHECKPOINT:');
+console.log(checkpoint.message);
+NODE
