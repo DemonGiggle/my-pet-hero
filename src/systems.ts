@@ -323,6 +323,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
       pet.hero.dungeon.currentExpedition.endedAt = at;
       pet.hero.dungeon.currentExpedition.bossDefeated = room.type === 'boss';
       pet.hero.dungeon.currentExpedition.completed = true;
+      pet.hero.dungeon.currentExpedition.roomsCleared = pet.hero.dungeon.currentExpedition.totalRooms;
     }
     text += ' 最深處出現了傳送門，隨後返回村莊。';
     const returnNotes = runVillageRecovery(pet, at);
@@ -385,7 +386,7 @@ export function autoDungeonRun(pet: PetState, at: string): AdventureLog | null {
   pet.hero.adventureLog = [...pet.hero.adventureLog, log].slice(-30);
   if (pet.hero.dungeon.currentExpedition) {
     pet.hero.dungeon.currentExpedition.logs = [...pet.hero.dungeon.currentExpedition.logs, log];
-    pet.hero.dungeon.currentExpedition.roomsCleared = log.runState?.pathTakenRoomIds?.length ?? log.runState?.roomIndex ?? pet.hero.dungeon.currentExpedition.roomsCleared;
+    pet.hero.dungeon.currentExpedition.roomsCleared = log.runState?.clearedRoomIds?.length ?? pet.hero.dungeon.currentExpedition.roomsCleared;
     pet.hero.dungeon.currentExpedition.totalRooms = log.runState?.roomCount ?? pet.hero.dungeon.currentExpedition.totalRooms;
     pet.hero.dungeon.currentExpedition.totalExpGained += exp;
     pet.hero.dungeon.currentExpedition.totalGoldGained += gold;
