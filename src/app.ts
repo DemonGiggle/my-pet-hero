@@ -8,7 +8,7 @@ import { renderStatusCard } from './render.js';
 import { simulatePet } from './simulate.js';
 import { listPetSaves, loadPet, savePet } from './state.js';
 import { SKILLS } from './skills.js';
-import { PetState } from './types.js';
+import { PetState, ReportJournalEntry } from './types.js';
 import { villageReadinessLabel, villageReadinessScore } from './village.js';
 
 const MAX_EXPEDITION_LOGS_IN_REPORT = 4;
@@ -160,6 +160,24 @@ function summarizeRisk(pet: PetState): { riskSummary: string; momentum: string; 
   };
 }
 
+function buildReportJournalEntry(result: ReturnType<typeof simulatePet>, nowIso: string): ReportJournalEntry {
+  const pet = result.pet;
+  const currentExpedition = pet.hero.dungeon.currentExpedition;
+  const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
+  const latestEvent = result.events[result.events.length - 1];
+  const title = currentExpedition
+    ? `${currentExpedition.dungeonName} / 第 ${currentExpedition.floor} 層`
+    : currentVillageActivity
+      ? `${pet.hero.dungeon.village.name} / ${currentVillageActivity.label}`
+      : `${pet.hero.dungeon.village.name} / 日常回合`;
+  const text = latestEvent?.text ?? result.summary;
+  return {
+    at: nowIso,
+    title,
+    text
+  };
+}
+
 function normalizePetIdCandidate(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
@@ -288,13 +306,21 @@ function formatExpeditionSummary(expedition: PetState['hero']['dungeon']['expedi
   return lines;
 }
 
-function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[] {
+function formatReportJournal(entries: ReportJournalEntry[]): string[] {
+  if (entries.length === 0) return ['【報告日誌】目前還沒有累積報告事件。'];
+  const lines = [`【報告日誌】累積 ${entries.length} 則事件`];
+  for (const [index, entry] of entries.entries()) {
+    lines.push(`${index + 1}. ${entry.title}`);
+    lines.push(`  ${entry.text}`);
+  }
+  return lines;
+}
+
+function formatAdventureReport(result: ReturnType<typeof simulatePet>, reportJournal: ReportJournalEntry[]): string[] {
   const pet = result.pet;
-  const adventures = pet.hero.adventureLog.slice(-3).reverse();
   const readinessScore = villageReadinessScore(pet);
   const readinessLabel = villageReadinessLabel(readinessScore);
   const currentVillageActivity = pet.hero.dungeon.village.currentActivity;
-  const recentVillageActivities = pet.hero.dungeon.village.recentActivities.slice(-3).reverse();
   const lines: string[] = [
     `【近況】${formatHeadline(result)}`,
     `【身體狀態】${formatNeedSummary(pet)}`,
@@ -311,51 +337,18 @@ function formatAdventureReport(result: ReturnType<typeof simulatePet>): string[]
 
   if (pet.hero.dungeon.location === 'village' && currentVillageActivity) {
     lines.push(`【村裡在做什麼】${currentVillageActivity.detail}`);
-    if (recentVillageActivities.length > 1) {
-      lines.push('【最近村莊行程】');
-      for (const activity of recentVillageActivities) {
-        const effects = Object.entries(activity.effects)
-          .filter(([, value]) => typeof value === 'number' && value !== 0)
-          .map(([key, value]) => `${key} ${value! > 0 ? '+' : ''}${value}`)
-          .join(' / ');
-        lines.push(`- ${activity.label}，${activity.summary}${effects ? ` (${effects})` : ''}`);
-      }
-    }
   }
 
   if (pet.hero.dungeon.currentExpedition) {
     lines.push(`【正在做什麼】剛好人在 ${pet.hero.dungeon.currentExpedition.dungeonName}，目前清了 ${pet.hero.dungeon.currentExpedition.roomsCleared}/${pet.hero.dungeon.currentExpedition.totalRooms} 房。`);
-    lines.push(...renderNarrativeDigest(pet.hero.dungeon.currentExpedition));
-    lines.push(...formatExpeditionSummary(pet.hero.dungeon.currentExpedition as PetState['hero']['dungeon']['expeditionHistory'][number]).map(line => `  ${line}`));
   } else if (pet.hero.dungeon.expeditionHistory.length > 0) {
     const latest = pet.hero.dungeon.expeditionHistory[pet.hero.dungeon.expeditionHistory.length - 1];
     lines.push(`【上一趟探險】剛從 ${latest.dungeonName} 回來，結果是 ${latest.status}${latest.returnMode ? ` / ${latest.returnMode}` : ''}。`);
-    lines.push(...renderNarrativeDigest(latest));
-    lines.push(...formatExpeditionSummary(latest).map(line => `  ${line}`));
   } else {
     lines.push(`【探險節奏】最近還沒留下正式探險紀錄，目前待在 ${pet.hero.dungeon.village.name}。`);
   }
 
-  if (adventures.length === 0) {
-    lines.push('【最近幾件事】還沒有新的冒險紀錄。');
-    return lines;
-  }
-
-  lines.push('【最近幾件事】');
-  for (const item of adventures) {
-    const where = item.dungeonName ? `${item.dungeonName} 的 ${item.roomName ?? item.roomType ?? '未知房間'}` : `第 ${item.floor} 層`;
-    lines.push(`- 在 ${where}，結果 ${item.outcome}，拿到 EXP +${item.expGained} / Gold +${item.goldGained}。`);
-    lines.push(`  ${item.text}`);
-    if (item.roomSummary) lines.push(`  房間摘要：${item.roomSummary}`);
-    if (item.runState?.minimap) lines.push(`  迷你地圖：${item.runState.minimap}`);
-    if (item.trap) lines.push(`  陷阱：${item.trap.effect}`);
-    if (item.routeChoice) lines.push(`  路線：${item.routeChoice.reason}`);
-    if (item.rewards && item.rewards.length > 0) lines.push(`  額外收穫：${item.rewards.join('、')}`);
-    if (item.combat) {
-      lines.push(`  戰鬥摘要：對上 ${item.combat.enemy.label}，打了 ${item.combat.rounds} 回合，結果 ${item.combat.outcome}。`);
-      if (item.combat.skillsUsed.length > 0) lines.push(`  用到技能：${item.combat.skillsUsed.map(skill => skill.skillLabel).join('、')}`);
-    }
-  }
+  lines.push(...formatReportJournal(reportJournal));
 
   return lines;
 }
@@ -389,10 +382,15 @@ export async function getStatusPayload(idArg?: string, includeReport = false): P
   const pet = await loadPet(id);
   const nowIso = new Date().toISOString();
   const result = simulatePet(pet, includeReport ? resolveReportSimulationAt(pet, nowIso) : nowIso);
+  if (includeReport) {
+    const journalEntry = buildReportJournalEntry(result, nowIso);
+    result.pet.reportJournal = [...(result.pet.reportJournal ?? []), journalEntry].slice(-30);
+  }
   await savePet(result.pet);
   const rendered = await renderStatusCard({ pet: result.pet, summary: formatCardSummary(result) });
   const currentDungeon = result.pet.hero.dungeon.currentDungeon;
   const currentRoom = currentDungeon?.rooms.find(room => room.id === currentDungeon.currentRoomId);
+  const reportJournal = result.pet.reportJournal ?? [];
 
   const payload: Record<string, unknown> = {
     location: result.pet.hero.dungeon.location,
@@ -449,10 +447,12 @@ export async function getStatusPayload(idArg?: string, includeReport = false): P
     equipmentSummary: formatEquipmentSummary(result.pet),
     aptitude: result.pet.hero.classProgress.aptitude,
     events: result.events.slice(-5),
-    adventures: result.pet.hero.adventureLog.slice(-3)
+    adventures: result.pet.hero.adventureLog.slice(-3),
+    reportJournal,
+    reportJournalCount: reportJournal.length
   };
 
-  if (includeReport) payload.report = formatAdventureReport(result).join('\n');
+  if (includeReport) payload.report = formatAdventureReport(result, reportJournal).join('\n');
   return payload;
 }
 

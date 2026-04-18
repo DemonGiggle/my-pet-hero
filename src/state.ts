@@ -388,7 +388,12 @@ const petStateSchema = z.object({
     type: z.string(),
     delta: needsSchema.partial(),
     text: z.string()
-  }))
+  })),
+  reportJournal: z.array(z.object({
+    at: z.string(),
+    title: z.string(),
+    text: z.string()
+  })).default([])
 });
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -960,6 +965,7 @@ export function createPet(params: { id: string; name: string; species: Species; 
       },
       adventureLog: []
     },
-    history: []
+    history: [],
+    reportJournal: []
   };
 }

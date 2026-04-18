@@ -128,6 +128,12 @@ export interface PetEvent {
   text: string;
 }
 
+export interface ReportJournalEntry {
+  at: string;
+  title: string;
+  text: string;
+}
+
 export interface EnemyTemplate {
   key: string;
   label: string;
@@ -478,6 +484,7 @@ export interface PetState {
   personality: Personality;
   hero: HeroProgress;
   history: PetEvent[];
+  reportJournal: ReportJournalEntry[];
 }
 
 export interface SimulationResult {

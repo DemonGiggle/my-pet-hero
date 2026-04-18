@@ -217,6 +217,7 @@ npm run dev -- doctor --id asaki
 
 `status --report` 會比一般 `status` 多做一段固定的 simulation 推進，然後把更新後的寵物狀態寫回存檔。也就是說，連續呼叫 `status --report` 時，角色的時間、needs、村莊活動與冒險紀錄都會真的往前走，而不是只讀出同一份快照。
 報告輸出本身只保留最近幾段探險細節，較舊的歷程會被收進摘要，不會無限增長。
+- `status --report` 另外會把這次的新增內容寫進 `reportJournal`，所以後一次看到的 report 會保留前一次的事件，只在最後再多一筆。
 - `checkpoint` 會先完成一次狀態更新，再把 `history` 收斂成只保留最後一筆，適合在回村或切到新冒險章節前手動切段。
 
 簡單區分：

@@ -26,6 +26,12 @@ async function main() {
     assert.equal(typeof status.headline, 'string');
     assert.equal(typeof status.report, 'string');
     assert.equal(typeof status.imagePath, 'string');
+    assert.equal(status.reportJournalCount, 1);
+
+    const statusAgain = await getStatusPayload('asaki', true);
+    assert.equal(statusAgain.reportJournalCount, 2);
+    assert.ok(Array.isArray(statusAgain.reportJournal));
+    assert.equal(statusAgain.reportJournal?.length, 2);
 
     const inventory = await getInventoryPayload('asaki');
     assert.equal(inventory.id, 'asaki');

@@ -45,6 +45,7 @@ The payload should expose at least:
 - `keyStats`
 - `events`
 - `adventures`
+- `reportJournal`
 - `currentExpedition`
 - `expeditionNarrative`
 - `narrativeDigest`
@@ -123,6 +124,9 @@ Suggested shape:
   "expToNext": 52
 }
 ```
+
+### `reportJournal`
+Persistent report entries appended one at a time by `status --report`. Wrappers should treat this as the cumulative story log for the report view, not a throwaway snapshot.
 
 ## Reply expectations for wrappers
 

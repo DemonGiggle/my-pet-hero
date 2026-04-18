@@ -127,6 +127,7 @@ Key wrapper-facing fields now include:
 - `storyBeats`
 - `riskSummary`
 - `keyStats`
+- `reportJournal`
 
 See `docs/chat-output-contract.md` and `docs/narration-style.md` for the portable presentation contract.
 
@@ -166,6 +167,7 @@ Then map the JSON fields roughly as follows:
 - `storyBeats`: filtered recent developments for storytelling
 - `riskSummary`: concise warning or momentum judgment
 - `keyStats`: compact decision-relevant stats
+- `reportJournal`: cumulative report events, suitable for a timeline or threaded recap
 
 Recommended wrapper behavior for default `/pet`:
 
